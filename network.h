@@ -9,6 +9,7 @@
 #define __NETWORK_H
 
 #include "cmdhandler.h"
+#include <solarcalc.h>
 
 
 DECLARE_STRING_P(ATTR_PASSWORD)
@@ -131,13 +132,14 @@ class CNetworkManager: public CCommandHandler
     command_connection_t m_scanConnection = nullptr;
     //
     NtpClient m_ntpClient;
+    CSolarCalculator m_solarCalc;
 
   private:
 
     void startMDNS();
     void ntpInit();
 
-    static void staticOnNtpReceive(NtpClient& client, time_t timestamp);
+    void onNtpReceive(NtpClient& client, time_t timestamp);
 
     void configComplete(uint8_t reason);
 
@@ -152,7 +154,7 @@ class CNetworkManager: public CCommandHandler
     }
 
   public:
-    CNetworkManager() : m_ntpClient(staticOnNtpReceive)
+    CNetworkManager() : m_ntpClient(NtpTimeResultDelegate(&CNetworkManager::onNtpReceive, this))
     { }
 
     void begin();

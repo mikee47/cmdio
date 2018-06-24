@@ -28,14 +28,15 @@ static IPAddress g_apIP(192, 168, 4, 1);
 static const char MDNS_SERVER_NAME[] = "stslc";
 static const char MDNS_VERSION[] = "version = now"; //stslc_0.1
 
-
 // System config file (private - secure)
 static DEFINE_STRING_P(FILE_NETWORK_CONFIG, ".network.json")
-static DEFINE_STRING_P(CONFIG_NETWORK, "network")
 static DEFINE_STRING_P(ATTR_HOSTNAME, "hostname")
 static DEFINE_STRING_P(ATTR_SERVER_PORT, "server-port")
 static DEFINE_STRING_P(DEFAULT_HOSTNAME, "lightcon")
 static const uint16_t DEFAULT_SERVER_PORT = 80;
+static DEFINE_STRING_P(ATTR_LATITUDE, "latitude")
+static DEFINE_STRING_P(ATTR_LONGITUDE, "longitude")
+static DEFINE_STRING_P(ATTR_TZOFFSET, "tzoffset")
 
 // WiFi details
 static DEFINE_STRING_P(CONFIG_AP, "accesspoint")
@@ -113,11 +114,6 @@ class CNetworkConfig : public CConfigFile
     CNetworkConfig()
     {
       init(FILE_NETWORK_CONFIG());
-    }
-
-    JsonObject& network()
-    {
-      return childObject(root(), CONFIG_NETWORK());
     }
 };
 
@@ -326,7 +322,7 @@ bool CNetworkManager::accessPointMode(bool enable)
     wifi_info_t info;
     {
       CNetworkConfig config;
-      JsonObject& ap = config.network()[CONFIG_AP()];
+      JsonObject& ap = config[CONFIG_AP()];
       info.ssid = ap[ATTR_SSID()].asString() ?: DEFAULT_AP_SSID();
       info.password = ap[ATTR_PASSWORD()].asString() ?: DEFAULT_AP_PASSWORD();
     }
@@ -376,7 +372,7 @@ void CNetworkManager::configure(command_connection_t connection, JsonObject& jso
       m_hostname = hostname;
       WifiStation.setHostname(m_hostname);
       CNetworkConfig config;
-      config.network()[ATTR_HOSTNAME()] = m_hostname;
+      config[ATTR_HOSTNAME()] = m_hostname;
       config.save();
     }
   }
@@ -544,9 +540,14 @@ void CNetworkManager::begin()
 
   {
     CNetworkConfig config;
-    JsonObject& network = config.network();
-    m_hostname = network[ATTR_HOSTNAME()].asString() ?: DEFAULT_HOSTNAME();
-    m_serverPort = network[ATTR_SERVER_PORT()].as<uint16_t>() ?: DEFAULT_SERVER_PORT;
+    m_hostname = config[ATTR_HOSTNAME()].asString() ?: DEFAULT_HOSTNAME();
+    m_serverPort = config[ATTR_SERVER_PORT()].as<uint16_t>() ?: DEFAULT_SERVER_PORT;
+
+    solar_ref_t& ref = m_solarCalc.ref();
+
+    CONFIG_READ(config, ATTR_LATITUDE(), ref.latitude);
+    CONFIG_READ(config, ATTR_LONGITUDE(), ref.longitude);
+    CONFIG_READ(config, ATTR_TZOFFSET(), ref.tzoffset);
   }
 
   WifiStation.setHostname(m_hostname);
@@ -591,7 +592,7 @@ void CNetworkManager::ntpInit()
 }
 
 
-void CNetworkManager::staticOnNtpReceive(NtpClient& client, time_t timestamp)
+void CNetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
 {
   debug_i("%s(%u)", __FUNCTION__, timestamp);
 
@@ -621,23 +622,15 @@ void CNetworkManager::staticOnNtpReceive(NtpClient& client, time_t timestamp)
   debug_i("SystemClock: UTC = %s", SystemClock.getSystemTimeString(eTZ_UTC).c_str());
   debug_i("SystemClock: LOC = %s", SystemClock.getSystemTimeString(eTZ_Local).c_str());
 
-  // Location co-ordinates should be part of config
-  const float lat = 52.067; // 52.01486;
-  const float lng = -0.7867; // -0.70126;
-  const float tz_offset = 0;
-  //
-
-  CSolarCalculator mk(lat, lng, tz_offset);
-
   bool dst = tz.utcIsDST(timestamp);
   DateTime dt(local);
-  int sunrise = mk.sunrise(dt.Year, dt.Month + 1, dt.Day, dst);
+  int sunrise = m_solarCalc.sunrise(dt.Year, dt.Month + 1, dt.Day, dst);
   debug_i("Sunrise: %02u:%02u", sunrise / 60, sunrise % 60);
 
-  int sunset = mk.sunset(dt.Year, dt.Month + 1, dt.Day, dst);
+  int sunset = m_solarCalc.sunset(dt.Year, dt.Month + 1, dt.Day, dst);
   debug_i("Sunset: %02u:%02u", sunset / 60, sunset % 60);
 
-  networkManager.statusChanged(nwc_timeUpdated);
+  statusChanged(nwc_timeUpdated);
 }
 
 

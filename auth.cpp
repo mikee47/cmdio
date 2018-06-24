@@ -38,7 +38,7 @@ access_type_t CAuthManager::authenticateUser(const char* username, const char* p
 {
   CConfigFile config;
   if (config.init(FILE_AUTH())) {
-    JsonArray& users = config.root()[ATTR_USERS()];
+    JsonArray& users = config[ATTR_USERS()];
     for (auto& user: users) {
       if (strcasecmp(user[ATTR_NAME()], username))
         continue;
