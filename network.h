@@ -23,7 +23,22 @@ struct wifi_info_t {
 };
 
 
-typedef void (*network_callback_t)();
+enum network_change_t {
+  // Disconnected from AP
+  nwc_disconnected,
+  // Connected to AP, address assigned
+  nwc_connected,
+  //Access Point mode enabled
+  nwc_apEnabled,
+  // Access Point mode disabled
+  nwc_apDisabled,
+  // Configuration changed
+  nwc_configChanged,
+  // System clock time updated via NTP
+  nwc_timeUpdated,
+};
+
+typedef void (*network_callback_t)(network_change_t nwc);
 
 typedef void (*network_scan_complete_t)(JsonObject& json, void* param);
 
@@ -114,10 +129,15 @@ class CNetworkManager: public CCommandHandler
     network_callback_t m_onStatusChange = nullptr;
     // Network scan
     command_connection_t m_scanConnection = nullptr;
+    //
+    NtpClient m_ntpClient;
 
   private:
 
     void startMDNS();
+    void ntpInit();
+
+    static void staticOnNtpReceive(NtpClient& client, time_t timestamp);
 
     void configComplete(uint8_t reason);
 
@@ -125,13 +145,16 @@ class CNetworkManager: public CCommandHandler
     bool stationMode(const wifi_info_t& info);
     void wifiEventHandler(System_Event_t* evt);
 
-    void statusChanged()
+    void statusChanged(network_change_t nwc)
     {
       if (m_onStatusChange)
-        m_onStatusChange();
+        m_onStatusChange(nwc);
     }
 
   public:
+    CNetworkManager() : m_ntpClient(staticOnNtpReceive)
+    { }
+
     void begin();
 
     void onStatusChange(network_callback_t callback);

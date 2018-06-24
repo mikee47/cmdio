@@ -13,6 +13,8 @@
 #include <WString_P.h>
 #include <apptasks.h>
 #include <configfile.h>
+#include <daylight.h>
+#include <solarcalc.h>
 
 
 // Global instance
@@ -248,7 +250,7 @@ void CNetworkManager::wifiEventHandler(System_Event_t *evt)
 #if DEBUG_BUILD
     debug_i("%s('%s', %s, %u %s)", STAMODE_DISCONNECTED().c_str(), e.ssid, macToStr(e.bssid).c_str(), e.reason, reasonToStr(e.reason).c_str());
 #endif
-    statusChanged();
+    statusChanged(nwc_disconnected);
     if (m_configConnection)
       configComplete(e.reason);
     break;
@@ -268,8 +270,9 @@ void CNetworkManager::wifiEventHandler(System_Event_t *evt)
     Event_StaMode_Got_IP_t& e = evt->event_info.got_ip;
     debug_i("%s(%s)", STAMODE_GOT_IP().c_str(), IPAddress(e.ip).toString().c_str());
 #endif
-    statusChanged();
+    statusChanged(nwc_connected);
     startMDNS();
+    ntpInit();
     break;
   }
 
@@ -345,7 +348,7 @@ bool CNetworkManager::accessPointMode(bool enable)
     debug_i("AP mode disabled");
   }
 
-  statusChanged();
+  statusChanged(WifiAccessPoint.isEnabled() ? nwc_apEnabled : nwc_apDisabled);
   return ret;
 }
 
@@ -424,7 +427,7 @@ void CNetworkManager::configure(command_connection_t connection, JsonObject& jso
       networkManager.configComplete(REASON_UNSPECIFIED);
     }
 
-    networkManager.statusChanged();
+    networkManager.statusChanged(nwc_configChanged);
   };
 
   deferCallback(callback, reinterpret_cast<os_param_t>(info));
@@ -530,7 +533,6 @@ void CNetworkManager::scan(command_connection_t connection, JsonObject& json)
 }
 
 
-
 void CNetworkManager::begin()
 {
   wifi_set_event_handler_cb([](System_Event_t* evt) {
@@ -578,4 +580,64 @@ void CNetworkManager::handleMessage(command_connection_t connection, JsonObject&
     return;
   }
 }
+
+
+
+void CNetworkManager::ntpInit()
+{
+  m_ntpClient.setNtpServer("pool.ntp.org");
+  m_ntpClient.setAutoQuery(true);
+  m_ntpClient.requestTime();
+}
+
+
+void CNetworkManager::staticOnNtpReceive(NtpClient& client, time_t timestamp)
+{
+  debug_i("%s(%u)", __FUNCTION__, timestamp);
+
+  // Get timezone
+  // United Kingdom (London, Belfast)
+  timechange_rule_t BST = { Last, Sun, Mar, 1, 60 };
+  timechange_rule_t GMT = { Last, Sun, Oct, 2,  0 };
+  CDaylight tz(BST, GMT);
+
+  time_t local = tz.toLocal(timestamp);
+  debug_i("Local = %d", local);
+  time_t now = SystemClock.now(eTZ_Local);
+  debug_i("System = %d", now);
+
+  debug_i("Local time: %s", DateTime(local).toFullDateTimeString().c_str());
+
+  // If time hasn't changed, don't need to update anything else
+  if (abs(now - local) < 2) {
+    debug_i("Time unchanged");
+    return;
+  }
+
+  float diff = (local - timestamp) / SECS_PER_HOUR;
+  debug_i("TZ diff = %f", diff);
+  SystemClock.setTimeZone(diff);
+  SystemClock.setTime(local, eTZ_Local);
+  debug_i("SystemClock: UTC = %s", SystemClock.getSystemTimeString(eTZ_UTC).c_str());
+  debug_i("SystemClock: LOC = %s", SystemClock.getSystemTimeString(eTZ_Local).c_str());
+
+  // Location co-ordinates should be part of config
+  const float lat = 52.067; // 52.01486;
+  const float lng = -0.7867; // -0.70126;
+  const float tz_offset = 0;
+  //
+
+  CSolarCalculator mk(lat, lng, tz_offset);
+
+  bool dst = tz.utcIsDST(timestamp);
+  DateTime dt(local);
+  int sunrise = mk.sunrise(dt.Year, dt.Month + 1, dt.Day, dst);
+  debug_i("Sunrise: %02u:%02u", sunrise / 60, sunrise % 60);
+
+  int sunset = mk.sunset(dt.Year, dt.Month + 1, dt.Day, dst);
+  debug_i("Sunset: %02u:%02u", sunset / 60, sunset % 60);
+
+  networkManager.statusChanged(nwc_timeUpdated);
+}
+
 
