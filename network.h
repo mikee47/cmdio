@@ -9,6 +9,7 @@
 #define __NETWORK_H
 
 #include "cmdhandler.h"
+#include <timemgmt.h>
 #include <solarcalc.h>
 
 
@@ -130,9 +131,8 @@ class CNetworkManager: public CCommandHandler
     network_callback_t m_onStatusChange = nullptr;
     // Network scan
     command_connection_t m_scanConnection = nullptr;
-    //
+    // For keeping system clock accurate
     NtpClient m_ntpClient;
-    CSolarCalculator m_solarCalc;
 
   private:
 
@@ -182,6 +182,9 @@ class CNetworkManager: public CCommandHandler
     }
 
     void handleMessage(command_connection_t connection, JsonObject& json);
+
+    // ITimeManager
+    time_t decodeTime(String s);
 };
 
 

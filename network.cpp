@@ -3,6 +3,14 @@
  *
  *  Created on: 28 May 2018
  *      Author: Mike
+ *
+ * ESP8266 doesn't have an RTC and will drift, so we use NTP to keep time roughly accurate.
+ *
+ * TODO:
+ *
+ *  Track next dawn/dusk times. These are calculated as times from midnight but we'll
+ *  store them as full time_t values for easy comparison with timers.
+ *
  */
 
 
@@ -12,9 +20,8 @@
 #include <network.h>
 #include <WString_P.h>
 #include <apptasks.h>
-#include <configfile.h>
 #include <daylight.h>
-#include <solarcalc.h>
+#include "../core/ConfigFile.h"
 
 
 // Global instance
@@ -34,9 +41,6 @@ static DEFINE_STRING_P(ATTR_HOSTNAME, "hostname")
 static DEFINE_STRING_P(ATTR_SERVER_PORT, "server-port")
 static DEFINE_STRING_P(DEFAULT_HOSTNAME, "lightcon")
 static const uint16_t DEFAULT_SERVER_PORT = 80;
-static DEFINE_STRING_P(ATTR_LATITUDE, "latitude")
-static DEFINE_STRING_P(ATTR_LONGITUDE, "longitude")
-static DEFINE_STRING_P(ATTR_TZOFFSET, "tzoffset")
 
 // WiFi details
 static DEFINE_STRING_P(CONFIG_AP, "accesspoint")
@@ -53,7 +57,6 @@ static DEFINE_STRING_P(ATTR_CHANNEL, "channel")
 static DEFINE_STRING_P(ATTR_RSSI, "rssi")
 static DEFINE_STRING_P(ATTR_HIDDEN, "hidden")
 static DEFINE_STRING_P(ATTR_SIMPLEPAIR, "simplepair")
-
 
 // Commands
 static DEFINE_STRING_P(METHOD_NETWORK, "network")
@@ -74,49 +77,6 @@ static DEFINE_STRING_P(SOFTAPMODE_STACONNECTED, "SOFTAPMODE_STACONNECTED");
 static DEFINE_STRING_P(SOFTAPMODE_STADISCONNECTED, "SOFTAPMODE_STADISCONNECTED");
 static DEFINE_STRING_P(SOFTAPMODE_PROBEREQRECVED, "SOFTAPMODE_PROBEREQRECVED");
 #endif
-
-
-/*
- * Ensure supplied parameters are valid
- */
-/*
-bool checkWifiInfo(const wifi_info_t& info)
-{
-  #define MIN_HOSTNAME_LENGTH   5
-  #define MAX_HOSTNAME_LENGTH   32
-
-  if (info.hostname.length() < MIN_HOSTNAME_LENGTH || info.hostname.length() > MAX_HOSTNAME_LENGTH) {
-    debug_w("Hostname '%s' length invalid", info.hostname.c_str());
-    return false;
-  }
-
-  #define MIN_SSID_LENGTH       5
-  #define MAX_SSID_LENGTH       31
-  #define MAX_PASSWORD_LENGTH   63
-
-  if (info.ssid.length() < MIN_SSID_LENGTH || info.ssid.length() > MAX_SSID_LENGTH) {
-    debug_w("SSID '%s' length invalid", info.ssid.c_str());
-    return false;
-  }
-
-  if (info.password.length() > MAX_PASSWORD_LENGTH) {
-    debug_w("Password '%s' too long", info.password.c_str());
-    return false;
-  }
-
-  return true;
-}
-*/
-
-class CNetworkConfig : public CConfigFile
-{
-  public:
-    CNetworkConfig()
-    {
-      init(FILE_NETWORK_CONFIG());
-    }
-};
-
 
 
 static char hexChar(uint8_t c)
@@ -321,7 +281,8 @@ bool CNetworkManager::accessPointMode(bool enable)
   if (enable) {
     wifi_info_t info;
     {
-      CNetworkConfig config;
+      CConfigFile config;
+      config.init(FILE_NETWORK_CONFIG());
       JsonObject& ap = config[CONFIG_AP()];
       info.ssid = ap[ATTR_SSID()].asString() ?: DEFAULT_AP_SSID();
       info.password = ap[ATTR_PASSWORD()].asString() ?: DEFAULT_AP_PASSWORD();
@@ -371,7 +332,8 @@ void CNetworkManager::configure(command_connection_t connection, JsonObject& jso
     if (WifiStation.getHostname() != hostname) {
       m_hostname = hostname;
       WifiStation.setHostname(m_hostname);
-      CNetworkConfig config;
+      CConfigFile config;
+      config.init(FILE_NETWORK_CONFIG());
       config[ATTR_HOSTNAME()] = m_hostname;
       config.save();
     }
@@ -539,15 +501,10 @@ void CNetworkManager::begin()
   WifiStation.enable(true);
 
   {
-    CNetworkConfig config;
+    CConfigFile config;
+    config.init(FILE_NETWORK_CONFIG());
     m_hostname = config[ATTR_HOSTNAME()].asString() ?: DEFAULT_HOSTNAME();
     m_serverPort = config[ATTR_SERVER_PORT()].as<uint16_t>() ?: DEFAULT_SERVER_PORT;
-
-    solar_ref_t& ref = m_solarCalc.ref();
-
-    CONFIG_READ(config, ATTR_LATITUDE(), ref.latitude);
-    CONFIG_READ(config, ATTR_LONGITUDE(), ref.longitude);
-    CONFIG_READ(config, ATTR_TZOFFSET(), ref.tzoffset);
   }
 
   WifiStation.setHostname(m_hostname);
@@ -609,28 +566,19 @@ void CNetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
 
   debug_i("Local time: %s", DateTime(local).toFullDateTimeString().c_str());
 
-  // If time hasn't changed, don't need to update anything else
-  if (abs(now - local) < 2) {
-    debug_i("Time unchanged");
-    return;
+  // Update system clock if it's drifted sufficiently
+  if (abs(now - local) > MAX_CLOCK_DRIFT) {
+    // Time zone difference also accounts for DST
+    float diff = (local - timestamp) / SECS_PER_HOUR;
+    debug_i("TZ diff = %f", diff);
+    SystemClock.setTimeZone(diff);
+    SystemClock.setTime(local, eTZ_Local);
+    debug_i("SystemClock: UTC = %s", SystemClock.getSystemTimeString(eTZ_UTC).c_str());
+    debug_i("SystemClock: LOC = %s", SystemClock.getSystemTimeString(eTZ_Local).c_str());
+
+    statusChanged(nwc_timeUpdated);
   }
-
-  float diff = (local - timestamp) / SECS_PER_HOUR;
-  debug_i("TZ diff = %f", diff);
-  SystemClock.setTimeZone(diff);
-  SystemClock.setTime(local, eTZ_Local);
-  debug_i("SystemClock: UTC = %s", SystemClock.getSystemTimeString(eTZ_UTC).c_str());
-  debug_i("SystemClock: LOC = %s", SystemClock.getSystemTimeString(eTZ_Local).c_str());
-
-  bool dst = tz.utcIsDST(timestamp);
-  DateTime dt(local);
-  int sunrise = m_solarCalc.sunrise(dt.Year, dt.Month + 1, dt.Day, dst);
-  debug_i("Sunrise: %02u:%02u", sunrise / 60, sunrise % 60);
-
-  int sunset = m_solarCalc.sunset(dt.Year, dt.Month + 1, dt.Day, dst);
-  debug_i("Sunset: %02u:%02u", sunset / 60, sunset % 60);
-
-  statusChanged(nwc_timeUpdated);
 }
+
 
 

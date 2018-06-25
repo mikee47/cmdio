@@ -278,7 +278,7 @@ void CFirmwareUpdateManager::handleMessage(command_connection_t connection, Json
     if (err)
       setError(json, err);
     else
-      connection->doNotRespond();
+      json[DONT_RESPOND()] = true;
     return;
   }
 

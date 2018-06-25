@@ -11,7 +11,7 @@
 #include <auth.h>
 #include <WString_P.h>
 #include <network.h>
-#include <configfile.h>
+#include <ConfigFile.h>
 
 
 // Global instance
@@ -74,7 +74,7 @@ void CAuthManager::login(command_connection_t connection, JsonObject& json)
    */
 
   if (!name && !password && WifiAccessPoint.isEnabled()) {
-    IPAddress ip = connection->getHttpConnection().getRemoteIp();
+    IPAddress ip = connection->getRemoteIp();
     if (ip.compare(WifiAccessPoint.getIP(), WifiAccessPoint.getNetworkMask()))
       access = access_user;
     else

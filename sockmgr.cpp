@@ -16,6 +16,7 @@
 // Messages
 DEFINE_STRING_P(ATTR_METHODS, "methods")
 
+
 CSocketManager socketManager;
 
 // Roughly 3.5KB RAM per websocket...
@@ -130,8 +131,6 @@ CCommandHandler* CSocketManager::findHandler(const char* method)
 
 void CSocketManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
-  connection->reset();
-
   const char* method = json[ATTR_METHOD()];
 
   CCommandHandler* handler = findHandler(method);
@@ -144,7 +143,7 @@ void CSocketManager::handleMessage(command_connection_t connection, JsonObject& 
   else
     handler->handleMessage(connection, json);
 
-  if (connection->respond())
+  if (!json.containsKey(DONT_RESPOND()))
     connection->send(json);
 }
 
