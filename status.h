@@ -79,12 +79,12 @@ void setError(JsonObject& json, int code, const String& text = "", const String&
   XX(busy,                  Device or controller is busy) \
   XX(queue_full,            Request queue is full) \
   XX(nomem,                 Out of memory) \
+  XX(no_control_id,         Control ID not specified) \
   XX(no_device_id,          Device ID not specified) \
   XX(no_command,            Command not specified) \
   XX(no_address,            Device address not specified) \
   XX(no_baudrate,           Device baud rate not specified) \
-  XX(no_code,               RF code not specified) \
-  XX(no_repeats,            RF repeat count not specified) \
+  XX(no_code,               RF code not specified)
 
 
 enum __attribute__((packed)) ioerror_t {

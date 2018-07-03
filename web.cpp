@@ -119,7 +119,7 @@ void CWebServer::handleMessage(command_connection_t connection, JsonObject& json
 
     if (m_server) {
       JsonArray& conns = json.createNestedArray(ATTR_CLIENTS());
-      for (int i = 0; i < m_server->connections().count(); i++)
+      for (unsigned i = 0; i < m_server->connections().count(); i++)
       {
         auto conn = m_server->connections()[i];
         conns.add(conn->getRemoteIp().toString());

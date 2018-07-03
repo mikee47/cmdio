@@ -20,8 +20,8 @@
 #include <network.h>
 #include <WString_P.h>
 #include <apptasks.h>
-#include <daylight.h>
-#include "../core/ConfigFile.h"
+#include <timemgmt.h>
+#include <ConfigFile.h>
 
 
 // Global instance
@@ -312,7 +312,8 @@ bool CNetworkManager::accessPointMode(bool enable)
 
 void CNetworkManager::configure(command_connection_t connection, JsonObject& json)
 {
-  if (!m_configConnection->isValid())
+  // If connection's been dropped we can continue
+  if (!m_configConnection->active())
     m_configConnection = nullptr;
 
   // Already configuring ?
@@ -491,6 +492,14 @@ void CNetworkManager::scan(command_connection_t connection, JsonObject& json)
 }
 
 
+CNetworkManager::CNetworkManager() :
+    m_ntpClient((NtpTimeResultDelegate)[](NtpClient& client, time_t timestamp) {
+      timeManager.update(timestamp);
+    })
+{
+}
+
+
 void CNetworkManager::begin()
 {
   wifi_set_event_handler_cb([](System_Event_t* evt) {
@@ -552,33 +561,6 @@ void CNetworkManager::ntpInit()
 void CNetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
 {
   debug_i("%s(%u)", __FUNCTION__, timestamp);
-
-  // Get timezone
-  // United Kingdom (London, Belfast)
-  timechange_rule_t BST = { Last, Sun, Mar, 1, 60 };
-  timechange_rule_t GMT = { Last, Sun, Oct, 2,  0 };
-  CDaylight tz(BST, GMT);
-
-  time_t local = tz.toLocal(timestamp);
-  debug_i("Local = %d", local);
-  time_t now = SystemClock.now(eTZ_Local);
-  debug_i("System = %d", now);
-
-  debug_i("Local time: %s", DateTime(local).toFullDateTimeString().c_str());
-
-  // Update system clock if it's drifted sufficiently
-  if (abs(now - local) > MAX_CLOCK_DRIFT) {
-    // Time zone difference also accounts for DST
-    float diff = (local - timestamp) / SECS_PER_HOUR;
-    debug_i("TZ diff = %f", diff);
-    SystemClock.setTimeZone(diff);
-    SystemClock.setTime(local, eTZ_Local);
-    debug_i("SystemClock: UTC = %s", SystemClock.getSystemTimeString(eTZ_UTC).c_str());
-    debug_i("SystemClock: LOC = %s", SystemClock.getSystemTimeString(eTZ_Local).c_str());
-
-    statusChanged(nwc_timeUpdated);
-  }
+  timeManager.update(timestamp);
 }
-
-
 

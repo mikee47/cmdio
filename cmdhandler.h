@@ -10,7 +10,7 @@
 
 #include <cmdconn.h>
 #include <SmingCore/Network/Http/Websocket/WebsocketResource.h>
-#include <cmdio/status.h>
+#include <status.h>
 
 // Tag used in messages to identify method; responses must contain the same method
 DECLARE_STRING_P(ATTR_METHOD)
@@ -76,9 +76,9 @@ class CWSCommandConnection: public WebSocketConnection, public ICommandConnectio
 
     using WebSocketConnection::send;
 
-    bool isValid()
+    bool active()
     {
-      return this ? getActiveWebSockets().contains(this) : false;
+      return (this != nullptr) && WebSocketConnection::getActiveWebSockets().contains(this);
     }
 
     void send(const String& msg);

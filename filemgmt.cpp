@@ -34,7 +34,7 @@ static DEFINE_STRING_P(COMMAND_CHECK, "check")
 
 CFileUpload::CFileUpload(CFileManager& manager, command_connection_t connection, String filename, size_t size) :
   m_manager(manager),
-  m_name(filename),
+  m_filename(filename),
   m_stream(filename),
   m_size(size),
   m_connection(connection),
@@ -81,7 +81,7 @@ void CFileUpload::endUpload()
     JsonObject& json = buffer.createObject();
     json[ATTR_METHOD()] = METHOD_SPIFFS();
     json[ATTR_COMMAND()] = COMMAND_UPLOAD();
-    json[ATTR_NAME()] = m_name;
+    json[ATTR_NAME()] = m_filename;
     json[ATTR_SIZE()] = m_size;
     json[ATTR_WRITTEN()] = m_written;
     if (m_error)
@@ -104,6 +104,8 @@ CFileManager::~CFileManager()
 void CFileManager::endUpload()
 {
   if (m_upload) {
+    if (m_callback)
+      m_callback(*m_upload);
     delete m_upload;
     m_upload = nullptr;
   }

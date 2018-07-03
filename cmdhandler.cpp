@@ -44,7 +44,7 @@ void CWSCommandConnection::send(const String& msg)
 {
   debug_i("%s(%s)", __FUNCTION__, msg.c_str());
 
-  if (isValid())
+  if (active())
     WebSocketConnection::sendString(msg);
 }
 

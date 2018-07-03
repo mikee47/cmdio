@@ -9,8 +9,6 @@
 #define __NETWORK_H
 
 #include "cmdhandler.h"
-#include <timemgmt.h>
-#include <solarcalc.h>
 
 
 DECLARE_STRING_P(ATTR_PASSWORD)
@@ -154,8 +152,7 @@ class CNetworkManager: public CCommandHandler
     }
 
   public:
-    CNetworkManager() : m_ntpClient(NtpTimeResultDelegate(&CNetworkManager::onNtpReceive, this))
-    { }
+    CNetworkManager();
 
     void begin();
 
