@@ -17,19 +17,23 @@
 #include <SmingCore/SmingCore.h>
 #include <ESP8266LLMNR/ESP8266LLMNR.h>
 
-#include <network.h>
+#include "network.h"
 #include <WString_P.h>
 #include <apptasks.h>
 #include <timemgmt.h>
 #include <ConfigFile.h>
+#include "filemgmt.h"
 
 
 // Global instance
 CNetworkManager networkManager;
 
-// DNS & AP parameters
+// Local Link Multicast Name Resolution (windows)
+static LLMNRResponder LLMNR;
+
+// DNS parameters
 static const uint8_t DNS_PORT = 53;
-static IPAddress g_apIP(192, 168, 4, 1);
+
 
 // Information broadcast via ZeroConf (LLMNR, MDNS)
 static const char MDNS_SERVER_NAME[] = "stslc";
@@ -48,6 +52,7 @@ static DEFINE_STRING_P(ATTR_SSID, "ssid")
 DEFINE_STRING_P(ATTR_PASSWORD, "password")
 static DEFINE_STRING_P(DEFAULT_AP_SSID, "STS Lightcon")
 static DEFINE_STRING_P(DEFAULT_AP_PASSWORD, "sts welcome")
+static DEFINE_STRING_P(ATTR_STATION, "station")
 
 // WiFi scan information
 static DEFINE_STRING_P(ATTR_NETWORKS, "networks")
@@ -79,24 +84,9 @@ static DEFINE_STRING_P(SOFTAPMODE_PROBEREQRECVED, "SOFTAPMODE_PROBEREQRECVED");
 #endif
 
 
-static char hexChar(uint8_t c)
-{
-  if (c < 10)
-    return '0' + c;
-  return 'a' + c - 10;
-}
-
 String macToStr(uint8_t hwaddr[6])
 {
-  char buf[20];
-  uint8_t n = 0;
-  for (uint8_t i = 0; i < 6; ++i) {
-    buf[n++] = hexChar(hwaddr[i] >> 4);
-    buf[n++] = hexChar(hwaddr[i] & 0x0F);
-    buf[n++] = ':';
-  }
-  buf[--n] = '\0';
-  return String(buf);
+  return toHexString(hwaddr, 6, ':');
 }
 
 
@@ -275,33 +265,36 @@ bool CNetworkManager::accessPointMode(bool enable)
     m_dnsServer = nullptr;
   }
 
-  WifiStation.enable(true);
+//  WifiStation.enable(true);
+  WifiStation.enable(false);
 
   bool ret = true;
   if (enable) {
     wifi_info_t info;
     {
       CConfigFile config;
-      config.init(FILE_NETWORK_CONFIG());
+      config.load(FILE_NETWORK_CONFIG());
       JsonObject& ap = config[CONFIG_AP()];
       info.ssid = ap[ATTR_SSID()].asString() ?: DEFAULT_AP_SSID();
       info.password = ap[ATTR_PASSWORD()].asString() ?: DEFAULT_AP_PASSWORD();
     }
 
+    wifi_station_set_reconnect_policy(false);
     WifiStation.disconnect();
     WifiAccessPoint.enable(true);
     ret = WifiAccessPoint.config(info.ssid, info.password, info.password.length() ? AUTH_WPA2_PSK : AUTH_OPEN);
 
-    WifiAccessPoint.setIP(g_apIP);
     m_dnsServer = new DNSServer();
     if (m_dnsServer)
-      m_dnsServer->start(DNS_PORT, "*", g_apIP);
+      m_dnsServer->start(DNS_PORT, "*", WifiAccessPoint.getIP());
 
     debug_i("AP mode, SSID '%s' - %s", WifiAccessPoint.getSSID().c_str(), ret ? "OK" : "FAILED");
   }
   else {
     WifiAccessPoint.enable(false);
+    WifiStation.enable(true);
     WifiStation.connect();
+    wifi_station_set_reconnect_policy(true);
     debug_i("AP mode disabled");
   }
 
@@ -313,8 +306,9 @@ bool CNetworkManager::accessPointMode(bool enable)
 void CNetworkManager::configure(command_connection_t connection, JsonObject& json)
 {
   // If connection's been dropped we can continue
-  if (!m_configConnection->active())
-    m_configConnection = nullptr;
+  if (m_configConnection)
+    if (!m_configConnection->active())
+      m_configConnection = nullptr;
 
   // Already configuring ?
   if (m_configConnection) {
@@ -334,9 +328,9 @@ void CNetworkManager::configure(command_connection_t connection, JsonObject& jso
       m_hostname = hostname;
       WifiStation.setHostname(m_hostname);
       CConfigFile config;
-      config.init(FILE_NETWORK_CONFIG());
+      config.load(FILE_NETWORK_CONFIG());
       config[ATTR_HOSTNAME()] = m_hostname;
-      config.save();
+      config.save(FILE_NETWORK_CONFIG());
     }
   }
 
@@ -479,6 +473,7 @@ void CNetworkManager::scan(command_connection_t connection, JsonObject& json)
     return;
   }
 
+  WifiStation.enable(true);
   auto cb = [](void* arg, STATUS status) {
     networkManager.scanComplete(arg, status);
   };
@@ -511,12 +506,15 @@ void CNetworkManager::begin()
 
   {
     CConfigFile config;
-    config.init(FILE_NETWORK_CONFIG());
+    config.load(FILE_NETWORK_CONFIG());
     m_hostname = config[ATTR_HOSTNAME()].asString() ?: DEFAULT_HOSTNAME();
+    WifiStation.setHostname(m_hostname);
     m_serverPort = config[ATTR_SERVER_PORT()].as<uint16_t>() ?: DEFAULT_SERVER_PORT;
-  }
 
-  WifiStation.setHostname(m_hostname);
+    JsonObject& station = config[ATTR_STATION()];
+    if (station.success())
+      configure(nullptr, station);
+  }
 }
 
 
@@ -552,7 +550,7 @@ void CNetworkManager::handleMessage(command_connection_t connection, JsonObject&
 
 void CNetworkManager::ntpInit()
 {
-  m_ntpClient.setNtpServer("pool.ntp.org");
+//  m_ntpClient.setNtpServer(NTP_SERVER());
   m_ntpClient.setAutoQuery(true);
   m_ntpClient.requestTime();
 }

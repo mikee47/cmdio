@@ -12,6 +12,8 @@
 
 #include "cmdhandler.h"
 
+DECLARE_STRING_P(FILE_INDEX_HTML)
+
 
 /*
  * Minor customisation to HttpServer
@@ -44,6 +46,15 @@ class HttpServerEx: public HttpServer
 };
 
 
+/** @brief  Callback function for web server access authorisation
+ *
+ * @param filename The file for which access is being requested
+ * @param access The authorised request access level
+ * @returns true if file may be accessed
+ */
+typedef std::function<bool (const String& filename, access_type_t access)> file_access_callback_t;
+
+
 class CWebServer: public CCommandHandler
 {
   private:
@@ -51,6 +62,7 @@ class CWebServer: public CCommandHandler
 
   private:
     int requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response);
+    bool sendFile(const String& filename, const String& cid, HttpResponse& response);
 
   public:
     bool start();

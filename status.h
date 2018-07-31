@@ -66,6 +66,7 @@ void setError(JsonObject& json, int code, const String& text = "", const String&
   XX(success,               Success) \
   XX(bad_config,            Configuration data invalid) \
   XX(access_denied,         Access Denied) \
+  XX(file,                  File Error) \
   XX(timeout,               Timeout) \
   XX(cancelled,             Cancelled) \
   XX(not_impl,              Not Implemented) \
@@ -93,7 +94,12 @@ enum __attribute__((packed)) ioerror_t {
 #undef XX
 };
 
-void debug_err(ioerror_t err, const String& arg);
+DECLARE_SZSTRING_P(IO_ERROR_TEXT)
+
+#define debug_err(_err, _arg) \
+  debug_w("%s: %s", IO_ERROR_TEXT().szGetText(_err), (_arg).c_str())
+
+
 ioerror_t setError(JsonObject& json, ioerror_t err, const String& arg = "");
 
 

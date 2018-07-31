@@ -9,9 +9,16 @@
 #define __FILEMGMT_H
 
 #include "cmdhandler.h"
+#include <status.h>
+#include <filesys.h>
 
 
 class CFileManager;
+
+// SPIFFS errors are larger than this
+#define ERROR_TIMEOUT   -1
+#define ERROR_TOO_BIG   -2
+
 
 // For handling a file upload
 class CFileUpload
@@ -19,22 +26,33 @@ class CFileUpload
   private:
     CFileManager& m_manager;
     String m_filename;
-    FileOutputStream m_stream;
-    uint32_t m_size;
+    CFileStream* m_file = nullptr;
+    uint32_t m_size = 0;
     command_connection_t m_connection = nullptr;
     uint32_t m_written = 0;
     // SPIFFS error
-    int m_error;
+    int m_error = ERROR_TIMEOUT;
     // Handles timeout condition
     Timer m_timer;
 
   private:
 
+    void close();
     void endUpload();
 
   public:
 
-    CFileUpload(CFileManager& manager, command_connection_t connection, String filename, size_t size);
+    CFileUpload(CFileManager& manager, command_connection_t connection) :
+      m_manager(manager),
+      m_connection(connection)
+    { }
+
+    ~CFileUpload()
+    {
+      close();
+    }
+
+    bool init(const char* filename, size_t size);
 
     const String& filename() const
     {
@@ -67,11 +85,14 @@ class CFileManager: public CCommandHandler
     file_upload_callback_t m_callback;
 
   private:
-    void sendFile(command_connection_t connection, String filename);
+    ioerror_t getFile(command_connection_t connection, JsonObject& json);
+    ioerror_t startUpload(command_connection_t connection, JsonObject& json);
     void endUpload();
 
   public:
     ~CFileManager();
+
+    bool init();
 
     /* CCommandHandler */
     String getMethod() const;

@@ -15,9 +15,10 @@
 
 #include <SmingCore/SmingCore.h>
 #include <SmingCore/Network/Http/Websocket/WebsocketResource.h>
-//#include <network.h>
 
 #include "cmdhandler.h"
+
+DECLARE_STRING_P(ATTR_CID)
 
 
 class CSocketManager
@@ -51,6 +52,9 @@ class CSocketManager
     }
 
     void loginComplete(command_connection_t connection, JsonObject& json);
+
+    static command_connection_t findConnection(uint32_t cid);
+    static command_connection_t findConnection(const char* cidStr);
 };
 
 

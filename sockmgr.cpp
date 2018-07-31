@@ -69,22 +69,27 @@ class CWebsocketResource: public WebsocketResource
  * open then only one of them will be active - it doesn't matter which one.
  *
  * We need to create the CID carefully to minimise the chance of an 'old' CID being
- * reused. We can use the time plus connection object address to do this.
+ * reused. Fortunately, there's a proper random number generator available.
  *
  */
 DEFINE_STRING_P(ATTR_CID, "cid")
 
 
-static void closeConnection(uint32_t cid)
+command_connection_t CSocketManager::findConnection(uint32_t cid)
 {
   WebSocketsList& list = CWSCommandConnection::getActiveWebSockets();
   for (unsigned i = 0; i < list.count(); ++i) {
-    auto cc = CWSCommandConnection::fromSocket(list[0]);
-    if (cc->cid() == cid) {
-      cc->close();
-      break;
-    }
+    auto cc = CWSCommandConnection::fromSocket(list[i]);
+    if (cc->cid() == cid)
+      return cc;
   }
+  return nullptr;
+}
+
+
+command_connection_t CSocketManager::findConnection(const char* cidStr)
+{
+  return cidStr ? findConnection(strtoul(cidStr, nullptr, 16)) : nullptr;
 }
 
 
@@ -98,12 +103,14 @@ void CSocketManager::loginComplete(command_connection_t connection, JsonObject& 
    * If the client provided a CID it will identify an previous socket instance.
    * It may not exist (if it's old) but if so we close it now to preserve resources.
    */
-  uint32_t cid = json[ATTR_CID()];
-  if (cid)
-    closeConnection(cid);
+  {
+    auto cc = findConnection(json[ATTR_CID()].asString());
+    if (cc && cc != connection)
+      delete cc;
+  }
 
   // By return we provide this connection's CID, which the client will store as a cookie
-  json[ATTR_CID()] = connection->cid();
+  json[ATTR_CID()] = String(connection->cid(), 16);
 
   /*
    * Client gets a list of authorised methods.
@@ -233,4 +240,5 @@ WebsocketResource* CSocketManager::createResource()
   wsResource->setBinaryHandler(WebSocketBinaryDelegate(&CSocketManager::binaryReceived, this));
   return wsResource;
 }
+
 

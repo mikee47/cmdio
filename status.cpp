@@ -54,14 +54,8 @@ void setError(JsonObject& json, int code, const String& text, const String& arg)
 
 
 #define XX(_tag, _comment) #_comment "\0"
-static DEFINE_SZSTRING_P(IO_ERROR_TEXT, IOERROR_MAP(XX))
+DEFINE_SZSTRING_P(IO_ERROR_TEXT, IOERROR_MAP(XX))
 #undef XX
-
-void debug_err(ioerror_t err, const String& arg)
-{
-  debug_w("%s: %s", IO_ERROR_TEXT().szGetText(err), arg.c_str());
-}
-
 
 ioerror_t setError(JsonObject& json, ioerror_t err, const String& arg)
 {

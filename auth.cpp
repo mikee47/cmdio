@@ -8,10 +8,12 @@
 
 #include <SmingCore/SmingCore.h>
 
-#include <auth.h>
+#include "auth.h"
 #include <WString_P.h>
-#include <network.h>
+#include "network.h"
 #include <ConfigFile.h>
+#include "filemgmt.h"
+#include <strings.h>
 
 
 // Global instance
@@ -23,7 +25,6 @@ static DEFINE_STRING_P(METHOD_AUTH, "auth")
 // Login
 static DEFINE_STRING_P(COMMAND_LOGIN, "login")
 static DEFINE_STRING_P(ATTR_USERS, "users")
-static DEFINE_STRING_P(ATTR_ACCESS, "access")
 
 static DEFINE_STRING_P(FILE_AUTH, ".auth.json")
 
@@ -36,8 +37,13 @@ static DEFINE_STRING_P(FILE_AUTH, ".auth.json")
  */
 access_type_t CAuthManager::authenticateUser(const char* username, const char* password)
 {
+  if (username == nullptr)
+    username = "";
+  if (password == nullptr)
+    password = "";
+
   CConfigFile config;
-  if (config.init(FILE_AUTH())) {
+  if (config.load(FILE_AUTH())) {
     JsonArray& users = config[ATTR_USERS()];
     for (auto& user: users) {
       if (strcasecmp(user[ATTR_NAME()], username))
@@ -46,7 +52,7 @@ access_type_t CAuthManager::authenticateUser(const char* username, const char* p
       if (strcmp(user[ATTR_PASSWORD()], password))
         break;
 
-      return getAccessType(user[ATTR_ACCESS()]);
+      return getAccessType(user[ATTR_ACCESS()].asString(), access_none);
     }
   }
 
@@ -85,7 +91,7 @@ void CAuthManager::login(command_connection_t connection, JsonObject& json)
     access = authenticateUser(name, password);
 
   if (access == access_none)
-    setError(json);
+    setError(json, ioe_access_denied);
   else {
     setSuccess(json);
 

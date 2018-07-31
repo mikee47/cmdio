@@ -22,7 +22,8 @@ DEFINE_STRING_P(DONT_RESPOND, "DR")
  */
 static uint32_t createCID(void* instance)
 {
-  return RTC.getRtcSeconds() ^ uint32_t(instance);
+  return os_random();
+//  return RTC.getRtcSeconds() ^ uint32_t(instance);
 }
 
 
@@ -42,7 +43,7 @@ CWSCommandConnection::CWSCommandConnection(HttpServerConnection* conn) :
  */
 void CWSCommandConnection::send(const String& msg)
 {
-  debug_i("%s(%s)", __FUNCTION__, msg.c_str());
+  debug_i("%s %u bytes: %s", __FUNCTION__, msg.length(), msg.c_str());
 
   if (active())
     WebSocketConnection::sendString(msg);
