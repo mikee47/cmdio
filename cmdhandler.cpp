@@ -27,10 +27,9 @@ static uint32_t createCID(void* instance)
 }
 
 
-CWSCommandConnection::CWSCommandConnection(HttpServerConnection* conn) :
-  WebSocketConnection(conn)
+CWSCommandConnection::CWSCommandConnection(HttpServerConnection& conn): WebSocketConnection(conn)
 {
-  conn->setTimeOut(WS_INITIAL_TIMEOUT);
+  conn.setTimeOut(WS_INITIAL_TIMEOUT);
   m_cid = createCID(this);
 }
 

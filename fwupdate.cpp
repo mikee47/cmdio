@@ -16,7 +16,6 @@
  */
 
 
-#include <WString_P.h>
 #include <fwupdate.h>
 #include <status.h>
 
@@ -65,8 +64,10 @@ void CFirmwareUpdateSession::init(uint32_t imageSize, unsigned chunkSize)
   m_bytesReceived = 0;
   notify(status_pending, ioe_success);
 
-  m_timer.initializeMs(FWUPDATE_TIMEOUT_MS, TimerDelegate(&CFirmwareUpdateSession::uploadTimeout, this));
-  m_timer.startOnce();
+  m_timer.setCallback([](void* arg) {
+    reinterpret_cast<CFirmwareUpdateSession*>(arg)->uploadTimeout();
+  }, this);
+  m_timer.startMs(FWUPDATE_TIMEOUT_MS);
 
   debug_i("%s: upload %u bytes to ROM %u @ 0x%08X", __PRETTY_FUNCTION__, m_imageSize, m_slot, bootconf.roms[m_slot]);
 }
@@ -177,7 +178,7 @@ bool CFirmwareUpdateSession::handleData(uint8_t* data, size_t size)
       if (m_bytesReceived % m_chunkSize == 0)
         notify(status_pending, ioe_success);
 
-      m_timer.startOnce();
+      m_timer.startMs(FWUPDATE_TIMEOUT_MS);
       return true;
     }
 

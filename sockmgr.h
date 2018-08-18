@@ -13,8 +13,8 @@
 #ifndef __METHODS_H
 #define __METHODS_H
 
-#include <SmingCore/SmingCore.h>
-#include <SmingCore/Network/Http/Websocket/WebsocketResource.h>
+#include <SmingCore.h>
+#include <Network/Http/Websocket/WebsocketResource.h>
 
 #include "cmdhandler.h"
 

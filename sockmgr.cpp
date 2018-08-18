@@ -27,7 +27,7 @@ class CWebsocketResource: public WebsocketResource
 {
   protected:
     // virtual
-    WebSocketConnection* createConnection(HttpServerConnection* connection)
+    WebSocketConnection* createConnection(HttpServerConnection& connection)
     {
       return new CWSCommandConnection(connection);
     }
@@ -226,7 +226,7 @@ void CSocketManager::binaryReceived(WebSocketConnection& socket, uint8_t* data, 
     if (m_handlers[i]->handleData(cc, data, size))
       return;
 
-  debug_w("%s() - unhandled", __FUNCTION__);
+  debug_w("%s(%u) - unhandled", __FUNCTION__, size);
 }
 
 

@@ -10,14 +10,19 @@
 
 #include "cmdhandler.h"
 #include <status.h>
-#include <filesys.h>
+#include <FileSystem.h>
+#include <OSTimer.h>
+#include <Delegate.h>
+#include <functional>
 
 
 class CFileManager;
 
-// SPIFFS errors are larger than this
-#define ERROR_TIMEOUT   -1
-#define ERROR_TOO_BIG   -2
+/** @brief File upload errors
+ *  @note mapped to user-defined filing system error range
+ */
+#define ERROR_TIMEOUT   (FSERR_USER - 1)	///< Transfer timed out
+#define ERROR_TOO_BIG	(FSERR_USER - 2)	///< Received more file data than header indicated
 
 
 // For handling a file upload
@@ -25,15 +30,15 @@ class CFileUpload
 {
   private:
     CFileManager& m_manager;
-    String m_filename;
-    CFileStream* m_file = nullptr;
+    String m_filename = nullptr;
+    file_t m_file = -1;
     uint32_t m_size = 0;
     command_connection_t m_connection = nullptr;
     uint32_t m_written = 0;
     // SPIFFS error
     int m_error = ERROR_TIMEOUT;
     // Handles timeout condition
-    Timer m_timer;
+    OSTimer m_timer;
 
   private:
 
@@ -97,9 +102,9 @@ class CFileManager: public CCommandHandler
     /* CCommandHandler */
     String getMethod() const;
 
-    access_type_t minAccess() const
+    UserRole minAccess() const
     {
-      return access_admin;
+      return UserRole::admin;
     }
 
     void onUpload(file_upload_callback_t callback)

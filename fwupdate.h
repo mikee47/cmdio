@@ -8,7 +8,7 @@
 #ifndef __FWUPDATE_H
 #define __FWUPDATE_H
 
-#include <SmingCore/SmingCore.h>
+#include <SmingCore.h>
 #include <appcode/rboot-api.h>
 #include <fwpack.h>
 
@@ -44,7 +44,7 @@ class CFirmwareUpdateSession
     // Indicates firmware has been received and checked, ready to be applied
     bool m_firmwareReady = false;
     // Detect timeout during transfer
-    Timer m_timer;
+    OSTimer m_timer;
     // RBOOT slot for update
     uint8_t m_slot = 0xFF;
     rboot_write_status m_rboot_status;

@@ -9,6 +9,11 @@
 #define __NETWORK_H
 
 #include "cmdhandler.h"
+#include <algorithm>
+#include <Network/DNSServer.h>
+#include <Network/NTPClient.h>
+#include <Platform/AccessPoint.h>
+#include <WString.h>
 
 
 DECLARE_STRING_P(ATTR_PASSWORD)
@@ -173,9 +178,9 @@ class CNetworkManager: public CCommandHandler
 
     String getMethod() const;
 
-    access_type_t minAccess() const
+    UserRole minAccess() const
     {
-      return access_user;
+      return UserRole::user;
     }
 
     void handleMessage(command_connection_t connection, JsonObject& json);

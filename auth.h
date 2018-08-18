@@ -33,12 +33,12 @@ class CAuthManager: public CCommandHandler
 
     String getMethod() const;
 
-    access_type_t minAccess() const
+    UserRole minAccess() const
     {
-      return access_none;
+      return UserRole::none;
     }
 
-    static access_type_t authenticateUser(const char* username, const char* password);
+    static UserRole authenticateUser(const char* username, const char* password);
     void handleMessage(command_connection_t connection, JsonObject& json);
 };
 

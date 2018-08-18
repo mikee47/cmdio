@@ -7,14 +7,11 @@
 
 #include <web.h>
 #include <status.h>
-#include <WString_P.h>
 #include <sockmgr.h>
 #include <network.h>
+#include <Data/Stream/TemplateStream.h>
 
 #include "filemgmt.h"
-
-
-HttpServerEx* m_server;
 
 DEFINE_STRING_P(FILE_INDEX_HTML, "index.html")
 static DEFINE_STRING_P(FILE_CONFIG_HTML, "config.html")
@@ -24,14 +21,6 @@ static DEFINE_STRING_P(METHOD_WEB, "web")
 static DEFINE_STRING_P(ATTR_PATH, "path")
 static DEFINE_STRING_P(ATTR_CLIENTS, "clients")
 static DEFINE_STRING_P(ATTR_SOCKETS, "sockets")
-
-
-void subst(String& tmpl, const String& var, const String& value)
-{
-  String s = "{" + var + "}";
-  tmpl.replace(s, value);
-}
-
 
 /*
  * All web file requests come here.
@@ -74,144 +63,119 @@ void subst(String& tmpl, const String& var, const String& value)
  */
 int CWebServer::requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
 {
-  String file = request.getPath();
-  file.toLowerCase();
+	String file = request.uri.relativePath();
 #if DEBUG_BUILD
-  IPAddress ip = connection.getRemoteIp();
-  uint16_t port = connection.getRemotePort();
-  debug_i("%s(%s[%u], '%s') from %s:%u", __FUNCTION__, http_method_str(request.method), request.method, file.c_str(), ip.toString().c_str(), port);
+	IPAddress ip = connection.getRemoteIp();
+	uint16_t port = connection.getRemotePort();
+	debug_i("%s(%s[%u], '%s') from %s:%u", __FUNCTION__, request.methodStr().c_str(), request.method, file.c_str(), ip.toString().c_str(), port);
 #endif
 
-  if (file[0] == '/')
-    file.remove(0, 1);
-
-  if (file.length() == 0 || (WifiAccessPoint.isEnabled() && !filesys->exists(file)))
-    file = FILE_INDEX_HTML();
+	if (file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file)))
+		file = FILE_INDEX_HTML();
 
 //  WifiAccessPoint.isEnabled() ? FILE_CONFIG_HTML() : FILE_INDEX_HTML();
 
-  sendFile(file, request.getQueryParameter(ATTR_CID()), response);
+	sendFile(file, request.getQueryParameter(ATTR_CID()), response);
 
-  // For errors construct and send error page
-  if (response.code >= 400) {
-    http_status status = static_cast<http_status>(response.code);
-    String tmpl = getFileContent(FILE_ERROR_HTML());
-    subst(tmpl, ATTR_PATH(), request.getPath());
-    subst(tmpl, ATTR_CODE(), String(status));
-    subst(tmpl, ATTR_TEXT(), httpGetStatusText(status));
-    response.setContentType(MIME_HTML);
-    response.sendString(tmpl);
+	// For errors construct and send error page
+	if (response.code >= 400) {
+		debug_i("requestComplete(): code = %d", response.code);
 
-/*
-    TemplateFileStream *tmpl = new TemplateFileStream(FILE_ERROR_HTML());
-    auto &vars = tmpl->variables();
-    vars[ATTR_PATH()] = request.getPath();
-    vars[ATTR_CODE()] = status;
-    vars[ATTR_TEXT()] = text;
-    response.sendTemplate(tmpl);
-*/
-  }
+		http_status status = static_cast<http_status>(response.code);
 
-  return 0;
+		TemplateFileStream *tmpl = new TemplateFileStream(FILE_ERROR_HTML());
+		auto &vars = tmpl->variables();
+		vars[ATTR_PATH()] = request.uri.path();
+		vars[ATTR_CODE()] = status;
+		vars[ATTR_TEXT()] = httpGetStatusText(status);
+		response.sendTemplate(tmpl);
+
+	}
+
+	return 0;
 }
 
-
-
-bool CWebServer::sendFile(const String& filename, const String& cid, HttpResponse& response)
+void CWebServer::sendFile(const String& filename, const String& cid, HttpResponse& response)
 {
-  auto cc = socketManager.findConnection(cid.c_str());
-  access_type_t access = cc ? cc->access() : access_none;
+	auto cc = socketManager.findConnection(cid.c_str());
+	UserRole access = cc ? cc->access() : UserRole::none;
 
-  CFileStream* fs = openFile(filename);
-  if (!fs) {
-    response.code = HTTP_STATUS_NOT_FOUND;
-    return false;
-  }
+	FileStat stat;
+	if (fileStats(filename, &stat) < 0) {
+		response.code = HTTP_STATUS_NOT_FOUND;
+		return;
+	}
 
-  file_meta_t meta;
-  fs->getMeta(meta);
+	// System files start with '.' and are always protected to admin level
+	if (filename[0] == '.') {
+		stat.acl.readAccess = UserRole::admin;
+		stat.acl.writeAccess = UserRole::admin;
+	}
 
-  // System files start with '.' and are always protected to admin level
-  if (filename[0] == '.') {
-    meta.readAccess = access_admin;
-    meta.writeAccess = access_admin;
-  }
-
-  if (access < meta.readAccess) {
-    delete fs;
-    response.code = HTTP_STATUS_FORBIDDEN;
-    return false;
-  }
-
-  if (meta.compressed)
-    response.headers[hhfn_ContentEncoding] = F("gzip");
-
-  String mime = ContentType::fromFullFileName(filename);
-
-  debug_i("MIME for '%s' is '%s'", filename.c_str(), mime.c_str());
-
-  response.code = HTTP_STATUS_OK;
-  //  response.setCache(86400, true);
-  return response.sendDataStream(fs, mime);
+	if (access < stat.acl.readAccess)
+		response.code = HTTP_STATUS_FORBIDDEN;
+	else
+		response.sendFile(stat);
 }
-
 
 bool CWebServer::start()
 {
-  if (m_server)
-    m_server->close();
-  else {
-    m_server = new HttpServerEx();
-    m_server->addPath(F("/ws"), socketManager.createResource());
-    m_server->addPath(F("*"), HttpResourceDelegate(&CWebServer::requestComplete, this));
-  }
+	if (m_server)
+		m_server->close();
+	else {
+		HttpServerSettings settings;
+		settings.maxActiveConnections = 10;
+		settings.keepAliveSeconds = 5;
+		settings.minHeapSize = -1;
+		settings.useDefaultBodyParsers = true;
+		m_server = new HttpServer(settings);
+		m_server->addPath(F("/ws"), socketManager.createResource());
+		m_server->addPath(F("*"), HttpResourceDelegate(&CWebServer::requestComplete, this));
+	}
 
-  uint16_t port = networkManager.webServerPort();
-  if (!m_server->listen(port)) {
-    debug_w("Web server listen failed");
-    return false;
-  }
+	uint16_t port = networkManager.webServerPort();
+	if (!m_server->listen(port)) {
+		debug_w("Web server listen failed");
+		return false;
+	}
 
-  debug_i("Web server started on port %u", port);
-  return true;
+	debug_i("Web server started on port %u", port);
+	return true;
 }
-
 
 void CWebServer::stop()
 {
-  if (m_server) {
-    m_server->shutdown();
-    // Server will delete itself when last client connection is closed.
-    m_server = nullptr;
-  }
+	if (m_server) {
+		m_server->shutdown();
+		// Server will delete itself when last client connection is closed.
+		m_server = nullptr;
+	}
 }
-
 
 String CWebServer::getMethod() const
 {
-  return METHOD_WEB();
+	return METHOD_WEB();
 }
-
 
 void CWebServer::handleMessage(command_connection_t connection, JsonObject& json)
 {
-  const char* command = json[ATTR_COMMAND()];
+	const char* command = json[ATTR_COMMAND()];
 
-  if (COMMAND_INFO() == command) {
-    json[ATTR_SOCKETS()] = WebSocketConnection::getActiveWebSockets().count();
+	if (COMMAND_INFO() == command) {
+		json[ATTR_SOCKETS()] = WebSocketConnection::getActiveWebSockets().count();
 
-    if (m_server) {
-      JsonArray& conns = json.createNestedArray(ATTR_CLIENTS());
-      for (unsigned i = 0; i < m_server->connections().count(); i++)
-      {
-        auto conn = m_server->connections()[i];
-        conns.add(conn->getRemoteIp().toString());
-      }
-    }
+		if (m_server) {
+			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS());
+			for (unsigned i = 0; i < m_server->connections().count(); i++)
+				{
+				auto conn = m_server->connections()[i];
+				conns.add(conn->getRemoteIp().toString());
+			}
+		}
 
-    return;
-  }
+		return;
+	}
 
-  CCommandHandler::handleMessage(connection, json);
+	CCommandHandler::handleMessage(connection, json);
 }
 

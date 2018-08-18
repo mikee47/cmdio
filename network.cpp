@@ -14,14 +14,12 @@
  */
 
 
-#include <SmingCore/SmingCore.h>
+#include "SmingCore.h"
 #include <ESP8266LLMNR/ESP8266LLMNR.h>
 
 #include "network.h"
-#include <WString_P.h>
-#include <apptasks.h>
-#include <timemgmt.h>
 #include <ConfigFile.h>
+#include "../core/TimeManager.h"
 #include "filemgmt.h"
 
 
@@ -92,13 +90,14 @@ String macToStr(uint8_t hwaddr[6])
 
 String authModeToStr(AUTH_MODE mode)
 {
-  static const char PROGMEM tags[] =
-    "OPEN\0"
-    "WEP\0"
-    "WPA\0"
-    "WPA2\0"
-    "WPA/WPA2\0";
-  return String_P(tags, sizeof(tags)).szGetText(mode);
+  switch (mode) {
+  case AUTH_OPEN:         return F("OPEN");
+  case AUTH_WEP:          return F("WEP");
+  case AUTH_WPA_PSK:      return F("WPA_PSK");
+  case AUTH_WPA2_PSK:     return F("WPA2_PSK");
+  case AUTH_WPA_WPA2_PSK: return F("WPA_WPA2_PSK");
+  default:                return String(mode);
+  }
 }
 
 
@@ -383,7 +382,7 @@ void CNetworkManager::configure(command_connection_t connection, JsonObject& jso
     networkManager.statusChanged(nwc_configChanged);
   };
 
-  deferCallback(callback, reinterpret_cast<os_param_t>(info));
+  System.deferCallback(callback, reinterpret_cast<os_param_t>(info));
 
   setPending(json);
 }
@@ -420,7 +419,7 @@ void CNetworkManager::configComplete(uint8_t errReason)
   }
 
   if (!errReason && WifiAccessPoint.isEnabled())
-    deferCallback([](os_param_t) {
+    System.deferCallback([](os_param_t) {
       networkManager.accessPointMode(false);
     });
 }

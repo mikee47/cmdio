@@ -6,14 +6,12 @@
  */
 
 
-#include <SmingCore/SmingCore.h>
-
+#include <WString.h>
 #include "auth.h"
-#include <WString_P.h>
 #include "network.h"
 #include <ConfigFile.h>
 #include "filemgmt.h"
-#include <strings.h>
+//#include <strings.h>
 
 
 // Global instance
@@ -35,7 +33,7 @@ static DEFINE_STRING_P(FILE_AUTH, ".auth.json")
  *
  * @returns access level permitted
  */
-access_type_t CAuthManager::authenticateUser(const char* username, const char* password)
+UserRole CAuthManager::authenticateUser(const char* username, const char* password)
 {
   if (username == nullptr)
     username = "";
@@ -52,11 +50,11 @@ access_type_t CAuthManager::authenticateUser(const char* username, const char* p
       if (strcmp(user[ATTR_PASSWORD()], password))
         break;
 
-      return getAccessType(user[ATTR_ACCESS()].asString(), access_none);
+      return getUserRole(user[ATTR_ACCESS()].asString(), UserRole::none);
     }
   }
 
-  return access_none;
+  return UserRole::none;
 }
 
 
@@ -69,7 +67,7 @@ String CAuthManager::getMethod() const
 // Don't overwrite access unless authenticated
 void CAuthManager::login(command_connection_t connection, JsonObject& json)
 {
-  access_type_t access = access_none;
+  UserRole access = UserRole::none;
 
   const char* name = json[ATTR_NAME()];
   const char* password = json[ATTR_PASSWORD()];
@@ -82,22 +80,22 @@ void CAuthManager::login(command_connection_t connection, JsonObject& json)
   if (!name && !password && WifiAccessPoint.isEnabled()) {
     IPAddress ip = connection->getRemoteIp();
     if (ip.compare(WifiAccessPoint.getIP(), WifiAccessPoint.getNetworkMask()))
-      access = access_user;
+      access = UserRole::user;
     else
       debug_w("Different subnets, default access withheld");
   }
 
-  if (access == access_none)
+  if (access == UserRole::none)
     access = authenticateUser(name, password);
 
-  if (access == access_none)
+  if (access == UserRole::none)
     setError(json, ioe_access_denied);
   else {
     setSuccess(json);
 
     // OK, user/password matches
     connection->setAccess(access);
-    json[ATTR_ACCESS()] = accessTypeToStr(access);
+    json[ATTR_ACCESS()] = userRoleToStr(access);
 
     if (m_onLoginComplete)
       m_onLoginComplete(connection, json);

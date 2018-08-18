@@ -9,8 +9,9 @@
 #define __CMDHANDLER_H
 
 #include <cmdconn.h>
-#include <SmingCore/Network/Http/Websocket/WebsocketResource.h>
+#include <Network/Http/Websocket/WebsocketResource.h>
 #include <status.h>
+
 
 // Tag used in messages to identify method; responses must contain the same method
 DECLARE_STRING_P(ATTR_METHOD)
@@ -64,7 +65,7 @@ class CWSCommandConnection: public WebSocketConnection, public ICommandConnectio
      * it's stateless; we'd need the client to store a token to deal
      * with this.
      */
-    access_type_t m_access;
+    UserRole m_access;
 
   public:
     static CWSCommandConnection* fromSocket(WebSocketConnection* socket)
@@ -72,7 +73,7 @@ class CWSCommandConnection: public WebSocketConnection, public ICommandConnectio
       return reinterpret_cast<CWSCommandConnection*>(socket);
     }
 
-    CWSCommandConnection(HttpServerConnection* conn);
+    CWSCommandConnection(HttpServerConnection& conn);
 
     using WebSocketConnection::send;
 
@@ -87,12 +88,12 @@ class CWSCommandConnection: public WebSocketConnection, public ICommandConnectio
     static void broadcast(JsonObject& json);
 
     // Permitted access type
-    access_type_t access()
+    UserRole access()
     {
       return m_access;
     }
 
-    void setAccess(access_type_t access)
+    void setAccess(UserRole access)
     {
       m_access = access;
       getHttpConnection().setTimeOut(WS_ACTIVE_TIMEOUT);
@@ -132,10 +133,10 @@ class CCommandHandler
      *
      * @param command Specify NULL to get minimum access for this handler.
      */
-    virtual access_type_t minAccess() const
+    virtual UserRole minAccess() const
     {
       // By default, require maximum access.
-      return access_admin;
+      return UserRole::admin;
     }
 
     virtual void handleMessage(command_connection_t connection, JsonObject& json)

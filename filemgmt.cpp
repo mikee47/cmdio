@@ -7,25 +7,33 @@
 
 #include "filemgmt.h"
 
-#include <WString_P.h>
 #include <status.h>
-#include <hybridfile.h>
+#include "Services/IFS/HybridFileSystem.h"
+
+#include "../Services/SpifFS/spiffs_sming.h"
 
 static DEFINE_STRING_P(METHOD_FILES, "files")
 
+// LIST
 static DEFINE_STRING_P(COMMAND_LIST, "list")
 static DEFINE_STRING_P(ATTR_FILES, "files")
+// GET
 static DEFINE_STRING_P(COMMAND_GET, "get")
+// UPLOAD
 static DEFINE_STRING_P(COMMAND_UPLOAD, "upload")
+// DELETE
 static DEFINE_STRING_P(COMMAND_DELETE, "delete")
+// STAT/UPLOAD
 static DEFINE_STRING_P(ATTR_SIZE, "size")
 static DEFINE_STRING_P(ATTR_FLAGS, "flags")
 static DEFINE_STRING_P(ATTR_MTIME, "mtime")
 static DEFINE_STRING_P(ATTR_WRITTEN, "written")
-static DEFINE_STRING_P(ATTR_BLOCKS, "blocks")
-static DEFINE_STRING_P(ATTR_TOTAL, "total")
-static DEFINE_STRING_P(ATTR_USED, "used")
+// INFO
+static DEFINE_STRING_P(ATTR_VOLUME_SIZE, "volumesize")
+static DEFINE_STRING_P(ATTR_FREE_SPACE, "freespace")
+// CHECK
 static DEFINE_STRING_P(COMMAND_CHECK, "check")
+// FORMAT
 static DEFINE_STRING_P(COMMAND_FORMAT, "format")
 
 // This is DWORD aligned so we can access it directly
@@ -33,247 +41,235 @@ extern const PROGMEM uint8_t __fwfiles_data[];
 
 #define UPLOAD_TIMEOUT_MS 2000
 
-
-void getMeta(JsonObject& json, filestream_t f)
+static void getFileInfo(JsonObject& json, const FileStat& stat)
 {
-  file_meta_t meta;
-  if (f->getMeta(meta)) {
-    json[ATTR_ACCESS()] = meta.accessStr();
-    json[ATTR_FLAGS()] = meta.flagsStr();
-    json[ATTR_MTIME()] = meta.mtime;
-  }
+	// Needs the cast to make Json create a copy of the string
+	json[ATTR_NAME()] = String(stat.name);
+	json[ATTR_SIZE()] = stat.size;
+	json[ATTR_ACCESS()] = stat.acl.toString();
+	json[ATTR_FLAGS()] = stat.attrStr();
+	json[ATTR_MTIME()] = stat.mtime;
 }
 
+static void getFileInfo(JsonObject& json, file_t file)
+{
+	FileStat stat;
+	if (fileStats(file, &stat) >= 0)
+		getFileInfo(json, stat);
+}
 
 bool CFileUpload::init(const char* filename, size_t size)
 {
-  m_filename = filename;
-  m_size = size;
-  m_file = openFile(m_filename, eFO_CreateNewAlways | eFO_WriteOnly);
-  if (!m_file)
-    return false;
+	m_filename = filename;
+	m_size = size;
+	m_file = fileOpen(m_filename, eFO_CreateNewAlways | eFO_WriteOnly);
+	debug_i("fileOpen('%s'): %d", filename, m_file);
+	if (m_file < 0)
+		return false;
 
-  m_error = ERROR_TIMEOUT;
-  m_timer.initializeMs(UPLOAD_TIMEOUT_MS, TimerDelegate(&CFileUpload::endUpload, this));
-  m_timer.startOnce();
+	m_error = ERROR_TIMEOUT;
+	m_timer.setCallback([](void* arg) {
+		reinterpret_cast<CFileUpload*>(arg)->endUpload();
+	}, this);
+	m_timer.startMs(UPLOAD_TIMEOUT_MS);
 
-  return true;
+	return true;
 }
-
 
 void CFileUpload::close()
 {
-  if (m_file) {
-    delete m_file;
-    m_file = nullptr;
-  }
+	if (m_file >= 0) {
+		fileClose(m_file);
+		m_file = -1;
+	}
 }
-
 
 bool CFileUpload::handleData(command_connection_t connection, uint8_t* data, size_t size)
 {
-  if (m_connection != connection)
-    return false;
+	if (m_connection != connection)
+		return false;
 
-  debug_i("%s(%u)", __FUNCTION__, size);
+	debug_i("%s(%u)", __FUNCTION__, size);
 
-  m_timer.stop();
+	m_timer.stop();
 
-  size_t n = m_file->write(data, size);
-  if (n != size) {
-    debug_e("File write error");
-    m_error = int(n);
-  }
-  else {
-    m_written += size;
-    // Need more data
-    if (m_written < m_size) {
-      m_timer.startOnce();
-      return true;
-    }
+	int n = fileWrite(m_file, data, size);
+	if (n != (int)size) {
+		debug_e("File write error");
+		m_error = n;
+	}
+	else {
+		m_written += size;
+		// Need more data
+		if (m_written < m_size) {
+			m_timer.startMs(UPLOAD_TIMEOUT_MS);
+			return true;
+		}
 
-    m_error = (m_written == m_size) ? SPIFFS_OK : ERROR_TOO_BIG;
-  }
+		m_error = (m_written == m_size) ? FS_OK : ERROR_TOO_BIG;
+	}
 
-  endUpload();
-  return true;
+	endUpload();
+	return true;
 }
-
-
 
 void CFileUpload::endUpload()
 {
-  if (m_file)
-    m_file->flush();
+	if (m_file >= 0)
+		fileFlush(m_file);
 
-  if (m_connection) {
-    DynamicJsonBuffer buffer;
-    JsonObject& json = buffer.createObject();
-    json[ATTR_METHOD()] = METHOD_FILES();
-    json[ATTR_COMMAND()] = COMMAND_UPLOAD();
-    json[ATTR_NAME()] = m_filename;
-    json[ATTR_SIZE()] = m_size;
-    json[ATTR_WRITTEN()] = m_written;
-    getMeta(json, m_file);
-    if (m_error)
-      setError(json, m_error);
-    else
-      setSuccess(json);
-    m_connection->send(json);
-  }
-  close();
+	if (m_connection) {
+		DynamicJsonBuffer buffer;
+		JsonObject& json = buffer.createObject();
+		json[ATTR_METHOD()] = METHOD_FILES();
+		json[ATTR_COMMAND()] = COMMAND_UPLOAD();
+		json[ATTR_WRITTEN()] = m_written;
+		getFileInfo(json, m_file);
+		if (m_error)
+			setError(json, m_error, fileGetErrorString(m_error));
+		else
+			setSuccess(json);
+		m_connection->send(json);
+	}
+	close();
 
-  m_manager.endUpload();
+	m_manager.endUpload();
 }
-
-
 
 /* CFileManager */
 
-
 CFileManager::~CFileManager()
 {
-  endUpload();
+	endUpload();
 }
-
 
 static s32_t api_spiffs_read(u32_t addr, u32_t size, u8_t *dst)
 {
-  flashmem_read(dst, addr, size);
-  return SPIFFS_OK;
+	flashmem_read(dst, addr, size);
+	return SPIFFS_OK;
 }
 
 static s32_t api_spiffs_write(u32_t addr, u32_t size, u8_t *src)
 {
-  //debugf("api_spiffs_write");
-  flashmem_write(src, addr, size);
-  return SPIFFS_OK;
+	//debugf("api_spiffs_write");
+	flashmem_write(src, addr, size);
+	return SPIFFS_OK;
 }
 
 static s32_t api_spiffs_erase(u32_t addr, u32_t size)
 {
-  debugf("api_spiffs_erase");
-  u32_t sect_first = flashmem_get_sector_of_address(addr);
-  u32_t sect_last = sect_first;
-  while (sect_first <= sect_last)
-    if (!flashmem_erase_sector(sect_first++))
-      return SPIFFS_ERR_INTERNAL;
+	debugf("api_spiffs_erase");
+	u32_t sect_first = flashmem_get_sector_of_address(addr);
+	u32_t sect_last = sect_first;
+	while (sect_first <= sect_last)
+		if (!flashmem_erase_sector(sect_first++))
+			return SPIFFS_ERR_INTERNAL;
 
-  return SPIFFS_OK;
+	return SPIFFS_OK;
 }
 
 bool CFileManager::init()
 {
-  if (filesys)
-    delete filesys;
+	fileSystemMount(nullptr);
 
-  auto freeheap = system_get_free_heap_size();
-  debug_i("1: free heap = %u", freeheap);
-  auto fs = new CHybridFileSystem();
-  debug_i("2: heap used = %u", freeheap - system_get_free_heap_size());
-  filesys = fs;
-  if (!fs)
-    return false;
+	auto freeheap = system_get_free_heap_size();
+	debug_i("1: free heap = %u", freeheap);
+	auto fs = new HybridFileSystem();
+	debug_i("2: heap used = %u", freeheap - system_get_free_heap_size());
+	if (!fs)
+		return false;
 
-  spiffs_config cfg = spiffs_get_storage_config();
-  cfg.hal_read_f = api_spiffs_read;
-  cfg.hal_write_f = api_spiffs_write;
-  cfg.hal_erase_f = api_spiffs_erase;
-  bool ret = fs->init(__fwfiles_data, cfg);
+	spiffs_config cfg = spiffs_get_storage_config();
+	cfg.hal_read_f = api_spiffs_read;
+	cfg.hal_write_f = api_spiffs_write;
+	cfg.hal_erase_f = api_spiffs_erase;
+	int res = fs->init(__fwfiles_data, cfg);
 
-  debug_i("3: Heap used = %u", freeheap - system_get_free_heap_size());
+	debug_i("3: Heap used = %u", freeheap - system_get_free_heap_size());
 
-  return ret;
+	if (res >= 0)
+		fileSystemMount(fs);
+	else
+		delete fs;
+
+	return res == FS_OK;
 }
-
 
 void CFileManager::endUpload()
 {
-  if (m_upload) {
-    if (m_callback)
-      m_callback(*m_upload);
-    delete m_upload;
-    m_upload = nullptr;
-  }
+	if (m_upload) {
+		if (m_callback)
+			m_callback(*m_upload);
+		delete m_upload;
+		m_upload = nullptr;
+	}
 }
-
 
 static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
 {
-  for (auto& f: files)
-    if (name == f[ATTR_NAME()])
-      return f;
+	for (auto& f : files)
+		if (name == f[ATTR_NAME()])
+			return f;
 
-  auto& f = files.createNestedObject();
-  f[ATTR_NAME()] = name;
-  return f;
+	auto& f = files.createNestedObject();
+	f[ATTR_NAME()] = name;
+	return f;
 }
 
 static void listFiles(JsonObject& json)
 {
-  auto& files = json.createNestedArray(ATTR_FILES());
+	auto& files = json.createNestedArray(ATTR_FILES());
 
-  fileinfo_t fi = findFirstFile();
-  if (fi) {
-    do {
-      auto& file = files.createNestedObject();
-      file[ATTR_NAME()] = fi->name();
-      file[ATTR_SIZE()] = fi->size();
+	filedir_t dir;
+	if (fileOpenRootDir(&dir) >= 0) {
+		FileStat stat;
+		while (fileReadDir(dir, &stat) >= 0) {
+			auto& file = files.createNestedObject();
+			getFileInfo(file, stat);
+		}
+		fileCloseDir(dir);
+	}
 
-      auto f = openFile(fi);
-      if (f) {
-        getMeta(file, f);
-        delete f;
-      }
-    } while (findNextFile(fi));
-    delete fi;
-  }
-
-  setSuccess(json);
+	setSuccess(json);
 }
-
 
 static void deleteFiles(JsonObject& json)
 {
-  JsonArray& files = json[ATTR_FILES()];
-  for (unsigned i = 0; i < files.size(); ++i) {
-    JsonObject& file = files[i];
-    if (deleteFile(file[ATTR_NAME()]))
-      setSuccess(file);
-    else
-      setError(file);
-  }
+	JsonArray& files = json[ATTR_FILES()];
+	for (unsigned i = 0; i < files.size(); ++i) {
+		JsonObject& file = files[i];
+		int res = fileDelete(file[ATTR_NAME()].asString());
+		if (res < 0)
+			setError(file, res, fileGetErrorString(res));
+		else
+			setSuccess(file);
+	}
 }
-
 
 static void getInfo(JsonObject& json)
 {
-  /*
-  u32_t total, used;
-  int err = SPIFFS_info(&_filesystemStorageHandle, &total, &used);
-  if (err) {
-    setError(json, err);
-    return;
-  }
-  JsonObject& blocks = json.createNestedObject(ATTR_BLOCKS());
-  blocks[ATTR_TOTAL()] = total;
-  blocks[ATTR_USED()] = used;
-  setSuccess(json);
-*/
+	FileSystemInfo info;
+	int err = fileGetSystemInfo(info);
+	if (err) {
+		setError(json, err, fileGetErrorString(err));
+	 return;
+	}
+	json[ATTR_VOLUME_SIZE()] = info.volumeSize;
+	json[ATTR_FREE_SPACE()] = info.freeSpace;
+	setSuccess(json);
 }
 
 static void check(JsonObject& json)
 {
-  setError(json, ioe_not_impl);
-/*
-  //!! Causes alignment exception. Not investigated.
+//  setError(json, ioe_not_impl);
 
-  int err = SPIFFS_check(&_filesystemStorageHandle);
-  if (err)
-    setError(json, err);
-  else
-    setSuccess(json);
-*/
+// @todo Causes alignment exception. Not investigated.
+
+	int err = fileSystemCheck();
+	if (err)
+		setError(json, err, spiffsErrorString(err).c_str());
+	else
+		setSuccess(json);
 }
 
 
@@ -282,19 +278,17 @@ static void check(JsonObject& json)
  */
 static void format(JsonObject& json)
 {
-  if (spiffs_format())
-    setSuccess(json);
-  else
-    setError(json);
+	int res = fileSystemFormat();
+	if (res < 0)
+		setError(json, res);
+	else
+		setSuccess(json);
 }
-
 
 String CFileManager::getMethod() const
 {
-  return METHOD_FILES();
+	return METHOD_FILES();
 }
-
-
 
 /*
  * TODO:
@@ -332,85 +326,81 @@ String CFileManager::getMethod() const
  */
 ioerror_t CFileManager::getFile(command_connection_t connection, JsonObject& json)
 {
-  return setError(json, ioe_not_impl);
-/*
+	return setError(json, ioe_not_impl);
+	/*
 
-  const char* name = json[ATTR_NAME()];
-  if (!name) {
-    setError(json, ioe_bad_param);
-    return;
-  }
+	 const char* name = json[ATTR_NAME()];
+	 if (!name) {
+	 setError(json, ioe_bad_param);
+	 return;
+	 }
 
-  file_t fh = fileOpen(filename, eFO_ReadOnly);
-  if (fh < 0) {
-    return ioe_spiffs;
+	 file_t fh = fileOpen(filename, eFO_ReadOnly);
+	 if (fh < 0) {
+	 return ioe_spiffs;
 
-  }
+	 }
 
-  filestream_t fs = openFile(filename);
-  if (!fs)
-    return;
+	 filestream_t fs = openFile(filename);
+	 if (!fs)
+	 return;
 
-  wsFrameType ft = WS_BINARY_FRAME;
-  bool fin = false;
-  do {
-    char buffer[1024];
-    uint16_t length = fs.readMemoryBlock(buffer, sizeof(buffer));
-    fin = fs.isFinished();
-    connection->send(buffer, length, ft, fin);
-    fs.seek(length);
-    ft = WS_CONTINUATION_FRAME;
-  } while (!fin);
+	 wsFrameType ft = WS_BINARY_FRAME;
+	 bool fin = false;
+	 do {
+	 char buffer[1024];
+	 uint16_t length = fs.readMemoryBlock(buffer, sizeof(buffer));
+	 fin = fs.isFinished();
+	 connection->send(buffer, length, ft, fin);
+	 fs.seek(length);
+	 ft = WS_CONTINUATION_FRAME;
+	 } while (!fin);
 
-  delete fs;
-*/
+	 delete fs;
+	 */
 }
-
 
 ioerror_t CFileManager::startUpload(command_connection_t connection, JsonObject& json)
 {
-  const char* name = json[ATTR_NAME()];
-  size_t size = json[ATTR_SIZE()];
-  if (name == nullptr || size <= 0)
-    return setError(json, ioe_bad_param);
+	const char* name = json[ATTR_NAME()];
+	size_t size = json[ATTR_SIZE()];
+	if (name == nullptr || size <= 0)
+		return setError(json, ioe_bad_param);
 
-  m_upload = new CFileUpload(*this, connection);
-  if (m_upload == nullptr)
-    return setError(json, ioe_nomem);
+	m_upload = new CFileUpload(*this, connection);
+	if (m_upload == nullptr)
+		return setError(json, ioe_nomem);
 
-  if (!m_upload->init(name, size)) {
-    delete m_upload;
-    return setError(json, ioe_file);
-  }
+	if (!m_upload->init(name, size)) {
+		delete m_upload;
+		return setError(json, ioe_file);
+	}
 
-  debug_i("File upload '%s', %u bytes", name, size);
-  setPending(json);
-  return ioe_success;
+	debug_i("File upload '%s', %u bytes", name, size);
+	setPending(json);
+	return ioe_success;
 }
-
 
 void CFileManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
-  endUpload();
+	endUpload();
 
-  const char* cmd = json[ATTR_COMMAND()];
-  if (COMMAND_GET() == cmd)
-    getFile(connection, json);
-  else if (COMMAND_UPLOAD() == cmd)
-    startUpload(connection, json);
-  else if (COMMAND_LIST() == cmd)
-    listFiles(json);
-  else if (COMMAND_DELETE() == cmd)
-    deleteFiles(json);
-  else if (COMMAND_INFO() == cmd)
-    getInfo(json);
-  else if (COMMAND_CHECK() == cmd)
-    check(json);
-  else if (COMMAND_FORMAT() == cmd)
-    format(json);
-  else
-    CCommandHandler::handleMessage(connection, json);
+	const char* cmd = json[ATTR_COMMAND()];
+	if (COMMAND_GET() == cmd)
+		getFile(connection, json);
+	else if (COMMAND_UPLOAD() == cmd)
+		startUpload(connection, json);
+	else if (COMMAND_LIST() == cmd)
+		listFiles(json);
+	else if (COMMAND_DELETE() == cmd)
+		deleteFiles(json);
+	else if (COMMAND_INFO() == cmd)
+		getInfo(json);
+	else if (COMMAND_CHECK() == cmd)
+		check(json);
+	else if (COMMAND_FORMAT() == cmd)
+		format(json);
+	else
+		CCommandHandler::handleMessage(connection, json);
 }
-
-
 
