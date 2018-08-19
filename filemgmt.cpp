@@ -9,6 +9,7 @@
 
 #include <status.h>
 #include "Services/IFS/HybridFileSystem.h"
+#include "Services/IFS/IFSFlashMedia.h"
 
 #include "../Services/SpifFS/spiffs_sming.h"
 
@@ -37,7 +38,7 @@ static DEFINE_STRING_P(COMMAND_CHECK, "check")
 static DEFINE_STRING_P(COMMAND_FORMAT, "format")
 
 // This is DWORD aligned so we can access it directly
-extern const PROGMEM uint8_t __fwfiles_data[];
+extern const uint8_t __fwfiles_data[] PROGMEM;
 
 #define UPLOAD_TIMEOUT_MS 2000
 
@@ -143,56 +144,38 @@ CFileManager::~CFileManager()
 	endUpload();
 }
 
-static s32_t api_spiffs_read(u32_t addr, u32_t size, u8_t *dst)
+
+uint32_t getFlashAddress(const void* addr)
 {
-	flashmem_read(dst, addr, size);
-	return SPIFFS_OK;
+	return reinterpret_cast<uint32_t>(addr) - INTERNAL_FLASH_START_ADDRESS;
 }
 
-static s32_t api_spiffs_write(u32_t addr, u32_t size, u8_t *src)
-{
-	//debugf("api_spiffs_write");
-	flashmem_write(src, addr, size);
-	return SPIFFS_OK;
-}
-
-static s32_t api_spiffs_erase(u32_t addr, u32_t size)
-{
-	debugf("api_spiffs_erase");
-	u32_t sect_first = flashmem_get_sector_of_address(addr);
-	u32_t sect_last = sect_first;
-	while (sect_first <= sect_last)
-		if (!flashmem_erase_sector(sect_first++))
-			return SPIFFS_ERR_INTERNAL;
-
-	return SPIFFS_OK;
-}
 
 bool CFileManager::init()
 {
-	fileSystemMount(nullptr);
+	fileFreeFileSystem();
 
 	auto freeheap = system_get_free_heap_size();
 	debug_i("1: free heap = %u", freeheap);
-	auto fs = new HybridFileSystem();
+
+	auto cfg = spiffs_get_storage_config();
+//	auto fs = new HybridFileSystem(getFlashAddress(__fwfiles_data), cfg.phys_addr, cfg.phys_size);
+	auto fs = new FirmwareFileSystem(getFlashAddress(__fwfiles_data));
 	debug_i("2: heap used = %u", freeheap - system_get_free_heap_size());
 	if (!fs)
 		return false;
 
-	spiffs_config cfg = spiffs_get_storage_config();
-	cfg.hal_read_f = api_spiffs_read;
-	cfg.hal_write_f = api_spiffs_write;
-	cfg.hal_erase_f = api_spiffs_erase;
-	int res = fs->init(__fwfiles_data, cfg);
+	int res = fs->mount();
 
 	debug_i("3: Heap used = %u", freeheap - system_get_free_heap_size());
 
-	if (res >= 0)
-		fileSystemMount(fs);
-	else
+	if (res < 0) {
 		delete fs;
+		return false;
+	}
 
-	return res == FS_OK;
+	fileSetFileSystem(fs);
+	return true;
 }
 
 void CFileManager::endUpload()
@@ -267,7 +250,7 @@ static void check(JsonObject& json)
 
 	int err = fileSystemCheck();
 	if (err)
-		setError(json, err, spiffsErrorString(err).c_str());
+		setError(json, err, fileGetErrorString(err));
 	else
 		setSuccess(json);
 }
