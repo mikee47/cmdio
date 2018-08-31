@@ -1,17 +1,18 @@
 /*
- * web.cpp
+ * WebServer.cpp
  *
  *  Created on: 6 Jun 2018
- *      Author: Mike
+ *      Author: mikee47
  */
 
-#include <web.h>
-#include <status.h>
-#include <sockmgr.h>
-#include <network.h>
-#include <Data/Stream/TemplateStream.h>
+#include "status.h"
+#include "Data/Stream/TemplateStream.h"
 
-#include "filemgmt.h"
+#include "WebServer.h"
+
+#include "FileManager.h"
+#include "NetworkManager.h"
+#include "WebSocketManager.h"
 
 DEFINE_STRING_P(FILE_INDEX_HTML, "index.html")
 static DEFINE_STRING_P(FILE_CONFIG_HTML, "config.html")
@@ -61,7 +62,7 @@ static DEFINE_STRING_P(ATTR_SOCKETS, "sockets")
  * a bit more readable.
  *
  */
-int CWebServer::requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
+int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
 {
 	String file = request.uri.relativePath();
 #if DEBUG_BUILD
@@ -81,24 +82,34 @@ int CWebServer::requestComplete(HttpServerConnection& connection, HttpRequest& r
 	if (response.code >= 400) {
 		debug_i("requestComplete(): code = %d", response.code);
 
+//		response.sendFile(FILE_ERROR_HTML(), false);
+
+/*
+20/8/2018 - something screwy going on here, still trying to get to the bottom of it
+fails in TemplateStream::readMemoryBlock on first read after "continue to plain text" (WAIT mode)
+
+23/8/2018 - I think the problem is somewhere in HTTP because we get a hang when a file
+can't be sent in a single TcpConnection::write operation. Perhaps the _stream is getting
+destroyed early?
+*/
+
 		http_status status = static_cast<http_status>(response.code);
 
-		TemplateFileStream *tmpl = new TemplateFileStream(FILE_ERROR_HTML());
+		auto tmpl = new TemplateFileStream(FILE_ERROR_HTML());
 		auto &vars = tmpl->variables();
 		vars[ATTR_PATH()] = request.uri.path();
 		vars[ATTR_CODE()] = status;
 		vars[ATTR_TEXT()] = httpGetStatusText(status);
 		response.sendTemplate(tmpl);
-
 	}
 
 	return 0;
 }
 
-void CWebServer::sendFile(const String& filename, const String& cid, HttpResponse& response)
+void WebServer::sendFile(const String& filename, const String& cid, HttpResponse& response)
 {
 	auto cc = socketManager.findConnection(cid.c_str());
-	UserRole access = cc ? cc->access() : UserRole::none;
+	UserRole access = cc ? cc->access() : UserRole::None;
 
 	FileStat stat;
 	if (fileStats(filename, &stat) < 0) {
@@ -108,17 +119,37 @@ void CWebServer::sendFile(const String& filename, const String& cid, HttpRespons
 
 	// System files start with '.' and are always protected to admin level
 	if (filename[0] == '.') {
-		stat.acl.readAccess = UserRole::admin;
-		stat.acl.writeAccess = UserRole::admin;
+		stat.acl.readAccess = UserRole::Admin;
+		stat.acl.writeAccess = UserRole::Admin;
 	}
 
 	if (access < stat.acl.readAccess)
 		response.code = HTTP_STATUS_FORBIDDEN;
-	else
+	else {
+		stat.name = NameBuffer((char*)filename.c_str(), filename.length(), filename.length());
 		response.sendFile(stat);
+/*
+		auto stream = new MemoryDataStream;
+		stream->setSize(stat.size);
+		auto file = fileOpen(stat);
+		if (file < 0) {
+			response.code = HTTP_STATUS_INTERNAL_SERVER_ERROR;
+			delete stream;
+			return;
+		}
+		// yeay, hacky :-)
+		fileRead(file, (char*)stream->getStreamPointer(), stat.size);
+		fileClose(file);
+
+		if (stat.attr & eFA_Compressed)
+			response.headers[hhfn_ContentEncoding] = F("gzip");
+
+		response.sendDataStream(stream, ContentType::fromFileName(stat.name));
+*/
+	}
 }
 
-bool CWebServer::start()
+bool WebServer::start()
 {
 	if (m_server)
 		m_server->close();
@@ -130,7 +161,7 @@ bool CWebServer::start()
 		settings.useDefaultBodyParsers = true;
 		m_server = new HttpServer(settings);
 		m_server->addPath(F("/ws"), socketManager.createResource());
-		m_server->addPath(F("*"), HttpResourceDelegate(&CWebServer::requestComplete, this));
+		m_server->addPath(F("*"), HttpResourceDelegate(&WebServer::requestComplete, this));
 	}
 
 	uint16_t port = networkManager.webServerPort();
@@ -143,7 +174,7 @@ bool CWebServer::start()
 	return true;
 }
 
-void CWebServer::stop()
+void WebServer::stop()
 {
 	if (m_server) {
 		m_server->shutdown();
@@ -152,12 +183,12 @@ void CWebServer::stop()
 	}
 }
 
-String CWebServer::getMethod() const
+String WebServer::getMethod() const
 {
 	return METHOD_WEB();
 }
 
-void CWebServer::handleMessage(command_connection_t connection, JsonObject& json)
+void WebServer::handleMessage(command_connection_t connection, JsonObject& json)
 {
 	const char* command = json[ATTR_COMMAND()];
 
@@ -166,8 +197,7 @@ void CWebServer::handleMessage(command_connection_t connection, JsonObject& json
 
 		if (m_server) {
 			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS());
-			for (unsigned i = 0; i < m_server->connections().count(); i++)
-				{
+			for (unsigned i = 0; i < m_server->connections().count(); i++) {
 				auto conn = m_server->connections()[i];
 				conns.add(conn->getRemoteIp().toString());
 			}
@@ -176,6 +206,6 @@ void CWebServer::handleMessage(command_connection_t connection, JsonObject& json
 		return;
 	}
 
-	CCommandHandler::handleMessage(connection, json);
+	ICommandHandler::handleMessage(connection, json);
 }
 

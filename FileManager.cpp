@@ -2,16 +2,16 @@
  * files.cpp
  *
  *  Created on: 28 May 2018
- *      Author: Mike
+ *      Author: mikee47
  */
-
-#include "filemgmt.h"
 
 #include <status.h>
 #include "Services/IFS/HybridFileSystem.h"
 #include "Services/IFS/IFSFlashMedia.h"
-
 #include "../Services/SpifFS/spiffs_sming.h"
+#include "FileManager.h"
+
+DEFINE_STRING_P(ATTR_ACCESS, "access")
 
 static DEFINE_STRING_P(METHOD_FILES, "files")
 
@@ -45,21 +45,24 @@ extern const uint8_t __fwfiles_data[] PROGMEM;
 static void getFileInfo(JsonObject& json, const FileStat& stat)
 {
 	// Needs the cast to make Json create a copy of the string
-	json[ATTR_NAME()] = String(stat.name);
+	json[ATTR_NAME()] = stat.name.length ? String(stat.name) : "";
 	json[ATTR_SIZE()] = stat.size;
-	json[ATTR_ACCESS()] = stat.acl.toString();
-	json[ATTR_FLAGS()] = stat.attrStr();
+	char buf[10];
+	fileAclToStr(stat.acl, buf, sizeof(buf));
+	json[ATTR_ACCESS()] = String(buf);	// ArduinoJson bug, doesn't copy char* as it should
+	fileAttrToStr(stat.attr, buf, sizeof(buf));
+	json[ATTR_FLAGS()] = String(buf);
 	json[ATTR_MTIME()] = stat.mtime;
 }
 
 static void getFileInfo(JsonObject& json, file_t file)
 {
-	FileStat stat;
+	FileNameStat stat;
 	if (fileStats(file, &stat) >= 0)
 		getFileInfo(json, stat);
 }
 
-bool CFileUpload::init(const char* filename, size_t size)
+bool FileUpload::init(const char* filename, size_t size)
 {
 	m_filename = filename;
 	m_size = size;
@@ -70,14 +73,14 @@ bool CFileUpload::init(const char* filename, size_t size)
 
 	m_error = ERROR_TIMEOUT;
 	m_timer.setCallback([](void* arg) {
-		reinterpret_cast<CFileUpload*>(arg)->endUpload();
+		reinterpret_cast<FileUpload*>(arg)->endUpload();
 	}, this);
 	m_timer.startMs(UPLOAD_TIMEOUT_MS);
 
 	return true;
 }
 
-void CFileUpload::close()
+void FileUpload::close()
 {
 	if (m_file >= 0) {
 		fileClose(m_file);
@@ -85,7 +88,7 @@ void CFileUpload::close()
 	}
 }
 
-bool CFileUpload::handleData(command_connection_t connection, uint8_t* data, size_t size)
+bool FileUpload::handleData(command_connection_t connection, uint8_t* data, size_t size)
 {
 	if (m_connection != connection)
 		return false;
@@ -114,7 +117,7 @@ bool CFileUpload::handleData(command_connection_t connection, uint8_t* data, siz
 	return true;
 }
 
-void CFileUpload::endUpload()
+void FileUpload::endUpload()
 {
 	if (m_file >= 0)
 		fileFlush(m_file);
@@ -139,28 +142,23 @@ void CFileUpload::endUpload()
 
 /* CFileManager */
 
-CFileManager::~CFileManager()
+FileManager::~FileManager()
 {
 	endUpload();
 }
 
-
-uint32_t getFlashAddress(const void* addr)
-{
-	return reinterpret_cast<uint32_t>(addr) - INTERNAL_FLASH_START_ADDRESS;
-}
-
-
-bool CFileManager::init()
+bool FileManager::init()
 {
 	fileFreeFileSystem();
 
 	auto freeheap = system_get_free_heap_size();
 	debug_i("1: free heap = %u", freeheap);
 
-	auto cfg = spiffs_get_storage_config();
-//	auto fs = new HybridFileSystem(getFlashAddress(__fwfiles_data), cfg.phys_addr, cfg.phys_size);
-	auto fs = new FirmwareFileSystem(getFlashAddress(__fwfiles_data));
+	auto fwMedia = new IFSFlashMedia(__fwfiles_data, eFMA_ReadOnly);
+	auto fs = new FirmwareFileSystem(fwMedia);
+//	auto cfg = spiffs_get_storage_config();
+//	auto ffsMedia = new IFSFlashMedia(cfg.phys_addr, cfg.phys_size, eFMA_ReadWrite);
+//	auto fs = new HybridFileSystem(fwMedia, ffsMedia);
 	debug_i("2: heap used = %u", freeheap - system_get_free_heap_size());
 	if (!fs)
 		return false;
@@ -168,6 +166,10 @@ bool CFileManager::init()
 	int res = fs->mount();
 
 	debug_i("3: Heap used = %u", freeheap - system_get_free_heap_size());
+
+	char buf[20];
+	fs->geterrortext(res, buf, sizeof(buf));
+	debug_i("mount() returned %d (%s)", res, buf);
 
 	if (res < 0) {
 		delete fs;
@@ -178,7 +180,7 @@ bool CFileManager::init()
 	return true;
 }
 
-void CFileManager::endUpload()
+void FileManager::endUpload()
 {
 	if (m_upload) {
 		if (m_callback)
@@ -199,13 +201,35 @@ static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
 	return f;
 }
 
+
+/* @todo create an IDataSourceStream for file listings.
+ * We only need to buffer one file entry.
+ * We can still use JSON for each entry, but we'll manually generate
+ * opening/closing stuff. The 'opening' stuff will be copied from
+ * the request so it gets emitted first.
+ *
+ * 1. Create the stream object
+ * 2. Add the json content to the stream
+ * 3. Set json[DONT_RESPOND()] = true
+ * 4. Call connection->send(stream)
+ *
+ * OK, so there's a bit of a problem with all this: WebSocketConnection
+ * buffers everything anyway and doesn't support streams.
+ *
+ * Need to take a proper look at using HTTP (e.g. REST) as a command
+ * interface. We'd still use websockets, but for all file-related stuff
+ * HTTP might be a better fit. There's still the issue with antivirus
+ * software adding scripts to HTML; maybe there's a way to defeat that by
+ * tagging the transfer in some way. Probably not.
+ *
+ */
 static void listFiles(JsonObject& json)
 {
 	auto& files = json.createNestedArray(ATTR_FILES());
 
 	filedir_t dir;
 	if (fileOpenRootDir(&dir) >= 0) {
-		FileStat stat;
+		FileNameStat stat;
 		while (fileReadDir(dir, &stat) >= 0) {
 			auto& file = files.createNestedObject();
 			getFileInfo(file, stat);
@@ -218,12 +242,19 @@ static void listFiles(JsonObject& json)
 
 static void deleteFiles(JsonObject& json)
 {
+	bool ok = true;
 	JsonArray& files = json[ATTR_FILES()];
 	for (unsigned i = 0; i < files.size(); ++i) {
 		JsonObject& file = files[i];
 		int res = fileDelete(file[ATTR_NAME()].asString());
-		if (res < 0)
-			setError(file, res, fileGetErrorString(res));
+		if (res < 0) {
+			auto s = fileGetErrorString(res);
+			setError(file, res, s);
+			if (ok) {
+				setError(json, res, s);
+				ok = false;
+			}
+		}
 		else
 			setSuccess(file);
 	}
@@ -235,7 +266,7 @@ static void getInfo(JsonObject& json)
 	int err = fileGetSystemInfo(info);
 	if (err) {
 		setError(json, err, fileGetErrorString(err));
-	 return;
+		return;
 	}
 	json[ATTR_VOLUME_SIZE()] = info.volumeSize;
 	json[ATTR_FREE_SPACE()] = info.freeSpace;
@@ -255,7 +286,6 @@ static void check(JsonObject& json)
 		setSuccess(json);
 }
 
-
 /*
  * Reformat SPIFFS to blank state
  */
@@ -268,7 +298,7 @@ static void format(JsonObject& json)
 		setSuccess(json);
 }
 
-String CFileManager::getMethod() const
+String FileManager::getMethod() const
 {
 	return METHOD_FILES();
 }
@@ -307,7 +337,7 @@ String CFileManager::getMethod() const
  * value.
  *
  */
-ioerror_t CFileManager::getFile(command_connection_t connection, JsonObject& json)
+ioerror_t FileManager::getFile(command_connection_t connection, JsonObject& json)
 {
 	return setError(json, ioe_not_impl);
 	/*
@@ -343,14 +373,14 @@ ioerror_t CFileManager::getFile(command_connection_t connection, JsonObject& jso
 	 */
 }
 
-ioerror_t CFileManager::startUpload(command_connection_t connection, JsonObject& json)
+ioerror_t FileManager::startUpload(command_connection_t connection, JsonObject& json)
 {
 	const char* name = json[ATTR_NAME()];
 	size_t size = json[ATTR_SIZE()];
 	if (name == nullptr || size <= 0)
 		return setError(json, ioe_bad_param);
 
-	m_upload = new CFileUpload(*this, connection);
+	m_upload = new FileUpload(*this, connection);
 	if (m_upload == nullptr)
 		return setError(json, ioe_nomem);
 
@@ -364,7 +394,7 @@ ioerror_t CFileManager::startUpload(command_connection_t connection, JsonObject&
 	return ioe_success;
 }
 
-void CFileManager::handleMessage(command_connection_t connection, JsonObject& json)
+void FileManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
 	endUpload();
 
@@ -384,6 +414,6 @@ void CFileManager::handleMessage(command_connection_t connection, JsonObject& js
 	else if (COMMAND_FORMAT() == cmd)
 		format(json);
 	else
-		CCommandHandler::handleMessage(connection, json);
+		ICommandHandler::handleMessage(connection, json);
 }
 
