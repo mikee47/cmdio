@@ -8,8 +8,13 @@
 #include <status.h>
 #include "Services/IFS/HybridFileSystem.h"
 #include "Services/IFS/IFSFlashMedia.h"
+#include "Services/IFS/FWObjectStore.h"
 #include "../Services/SpifFS/spiffs_sming.h"
 #include "FileManager.h"
+
+// For testing
+#define FWFS_ONLY
+
 
 DEFINE_STRING_P(ATTR_ACCESS, "access")
 
@@ -152,20 +157,27 @@ bool FileManager::init()
 	fileFreeFileSystem();
 
 	auto freeheap = system_get_free_heap_size();
-	debug_i("1: free heap = %u", freeheap);
+	debug_i("1: heap = %u", freeheap);
 
 	auto fwMedia = new IFSFlashMedia(__fwfiles_data, eFMA_ReadOnly);
-	auto fs = new FirmwareFileSystem(fwMedia);
-//	auto cfg = spiffs_get_storage_config();
-//	auto ffsMedia = new IFSFlashMedia(cfg.phys_addr, cfg.phys_size, eFMA_ReadWrite);
-//	auto fs = new HybridFileSystem(fwMedia, ffsMedia);
-	debug_i("2: heap used = %u", freeheap - system_get_free_heap_size());
+	debug_i("2: heap = -%u", freeheap - system_get_free_heap_size());
+	auto store = new FWObjectStore(fwMedia);
+	debug_i("3: heap = -%u", freeheap - system_get_free_heap_size());
+#ifdef FWFS_ONLY
+	auto fs = new FirmwareFileSystem(store);
+#else
+	auto cfg = spiffs_get_storage_config();
+	auto ffsMedia = new IFSFlashMedia(cfg.phys_addr, cfg.phys_size, eFMA_ReadWrite);
+	debug_i("4: heap = -%u", freeheap - system_get_free_heap_size());
+	auto fs = new HybridFileSystem(store, ffsMedia);
+#endif
+	debug_i("5: heap = -%u", freeheap - system_get_free_heap_size());
 	if (!fs)
 		return false;
 
 	int res = fs->mount();
 
-	debug_i("3: Heap used = %u", freeheap - system_get_free_heap_size());
+	debug_i("6: heap = -%u", freeheap - system_get_free_heap_size());
 
 	char buf[20];
 	fs->geterrortext(res, buf, sizeof(buf));
@@ -223,21 +235,41 @@ static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
  * tagging the transfer in some way. Probably not.
  *
  */
+int scanPath(String path, JsonArray& files)
+{
+	filedir_t dir;
+	int res = fileOpenDir(path, &dir);
+	if (res < 0)
+		return res;
+
+	FileNameStat stat;
+	while ((res = fileReadDir(dir, &stat)) >= 0) {
+		auto& file = files.createNestedObject();
+		getFileInfo(file, stat);
+		if (bitRead(stat.attr, FileAttr::Directory)) {
+			auto& files = file.createNestedArray(ATTR_FILES());
+			if (path)
+				res = scanPath(path + "/" + stat.name, files);
+			else
+				res = scanPath(stat.name.buffer, files);
+			if (res < 0)
+				setError(file, res, fileGetErrorString(res));
+		}
+	}
+	fileCloseDir(dir);
+
+	return res;
+}
+
 static void listFiles(JsonObject& json)
 {
 	auto& files = json.createNestedArray(ATTR_FILES());
 
-	filedir_t dir;
-	if (fileOpenRootDir(&dir) >= 0) {
-		FileNameStat stat;
-		while (fileReadDir(dir, &stat) >= 0) {
-			auto& file = files.createNestedObject();
-			getFileInfo(file, stat);
-		}
-		fileCloseDir(dir);
-	}
-
-	setSuccess(json);
+	int res = scanPath(nullptr, files);
+	if (res < 0)
+		setError(json, res, fileGetErrorString(res));
+	else
+		setSuccess(json);
 }
 
 static void deleteFiles(JsonObject& json)
