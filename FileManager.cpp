@@ -13,7 +13,7 @@
 #include "FileManager.h"
 
 // For testing
-#define FWFS_ONLY
+//#define FWFS_ONLY
 
 
 DEFINE_STRING_P(ATTR_ACCESS, "access")
@@ -23,6 +23,7 @@ static DEFINE_STRING_P(METHOD_FILES, "files")
 // LIST
 static DEFINE_STRING_P(COMMAND_LIST, "list")
 static DEFINE_STRING_P(ATTR_FILES, "files")
+static DEFINE_STRING_P(ATTR_DIR, "dir")
 // GET
 static DEFINE_STRING_P(COMMAND_GET, "get")
 // UPLOAD
@@ -31,7 +32,7 @@ static DEFINE_STRING_P(COMMAND_UPLOAD, "upload")
 static DEFINE_STRING_P(COMMAND_DELETE, "delete")
 // STAT/UPLOAD
 static DEFINE_STRING_P(ATTR_SIZE, "size")
-static DEFINE_STRING_P(ATTR_FLAGS, "flags")
+static DEFINE_STRING_P(ATTR_ATTR, "attr")
 static DEFINE_STRING_P(ATTR_MTIME, "mtime")
 static DEFINE_STRING_P(ATTR_WRITTEN, "written")
 // INFO
@@ -49,14 +50,16 @@ extern const uint8_t __fwfiles_data[] PROGMEM;
 
 static void getFileInfo(JsonObject& json, const FileStat& stat)
 {
-	// Needs the cast to make Json create a copy of the string
-	json[ATTR_NAME()] = stat.name.length ? String(stat.name) : "";
+	if (!json.containsKey(ATTR_NAME())) {
+		// Needs the cast to make Json create a copy of the string
+		json[ATTR_NAME()] = stat.name.length ? String(stat.name) : "";
+	}
 	json[ATTR_SIZE()] = stat.size;
 	char buf[10];
 	fileAclToStr(stat.acl, buf, sizeof(buf));
 	json[ATTR_ACCESS()] = String(buf);	// ArduinoJson bug, doesn't copy char* as it should
 	fileAttrToStr(stat.attr, buf, sizeof(buf));
-	json[ATTR_FLAGS()] = String(buf);
+	json[ATTR_ATTR()] = String(buf);
 	json[ATTR_MTIME()] = stat.mtime;
 }
 
@@ -235,61 +238,49 @@ static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
  * tagging the transfer in some way. Probably not.
  *
  */
-int scanPath(String path, JsonArray& files)
-{
-	filedir_t dir;
-	int res = fileOpenDir(path, &dir);
-	if (res < 0)
-		return res;
-
-	FileNameStat stat;
-	while ((res = fileReadDir(dir, &stat)) >= 0) {
-		auto& file = files.createNestedObject();
-		getFileInfo(file, stat);
-		if (bitRead(stat.attr, FileAttr::Directory)) {
-			auto& files = file.createNestedArray(ATTR_FILES());
-			if (path)
-				res = scanPath(path + "/" + stat.name, files);
-			else
-				res = scanPath(stat.name.buffer, files);
-			if (res < 0)
-				setError(file, res, fileGetErrorString(res));
-		}
-	}
-	fileCloseDir(dir);
-
-	return res;
-}
-
 static void listFiles(JsonObject& json)
 {
 	auto& files = json.createNestedArray(ATTR_FILES());
 
-	int res = scanPath(nullptr, files);
-	if (res < 0)
-		setError(json, res, fileGetErrorString(res));
-	else
+	filedir_t dir;
+	int res = fileOpenDir(json[ATTR_DIR()].asString(), &dir);
+	if (res >= 0) {
+		FileNameStat stat;
+		while ((res = fileReadDir(dir, &stat)) >= 0) {
+			JsonObject& file = findOrCreateFile(files, stat.name.buffer);
+			getFileInfo(file, stat);
+		}
+		fileCloseDir(dir);
+	}
+
+	if (res == FS_OK || res == FSERR_NoMoreFiles)
 		setSuccess(json);
+	else
+		setError(json, res, fileGetErrorString(res));
 }
 
 static void deleteFiles(JsonObject& json)
 {
-	bool ok = true;
+	int res = FS_OK;
+	String dir = json[ATTR_DIR()].asString();
 	JsonArray& files = json[ATTR_FILES()];
 	for (unsigned i = 0; i < files.size(); ++i) {
 		JsonObject& file = files[i];
-		int res = fileDelete(file[ATTR_NAME()].asString());
-		if (res < 0) {
-			auto s = fileGetErrorString(res);
-			setError(file, res, s);
-			if (ok) {
-				setError(json, res, s);
-				ok = false;
-			}
+		String path = dir + "/" + file[ATTR_NAME()].asString();
+		int err = fileDelete(path);
+		if (err < 0) {
+			setError(file, err, fileGetErrorString(err));
+			if (res == FS_OK)
+				res = err;
 		}
 		else
 			setSuccess(file);
 	}
+
+	if (res == FS_OK)
+		setSuccess(json);
+	else
+		setError(json, res, fileGetErrorString(res));
 }
 
 static void getInfo(JsonObject& json)
@@ -307,10 +298,6 @@ static void getInfo(JsonObject& json)
 
 static void check(JsonObject& json)
 {
-//  setError(json, ioe_not_impl);
-
-// @todo Causes alignment exception. Not investigated.
-
 	int err = fileSystemCheck();
 	if (err)
 		setError(json, err, fileGetErrorString(err));
@@ -376,19 +363,19 @@ ioerror_t FileManager::getFile(command_connection_t connection, JsonObject& json
 
 	 const char* name = json[ATTR_NAME()];
 	 if (!name) {
-	 setError(json, ioe_bad_param);
-	 return;
+		 setError(json, ioe_bad_param);
+		 return;
 	 }
 
 	 file_t fh = fileOpen(filename, eFO_ReadOnly);
 	 if (fh < 0) {
-	 return ioe_spiffs;
+	 	 return ioe_spiffs;
 
 	 }
 
 	 filestream_t fs = openFile(filename);
 	 if (!fs)
-	 return;
+	 	 return;
 
 	 wsFrameType ft = WS_BINARY_FRAME;
 	 bool fin = false;
