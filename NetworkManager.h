@@ -12,6 +12,7 @@
 #include "Network/DNSServer.h"
 #include "Network/NTPClient.h"
 #include "Platform/AccessPoint.h"
+#include "Platform/Station.h"
 #include "WString.h"
 
 DECLARE_STRING_P(ATTR_PASSWORD)

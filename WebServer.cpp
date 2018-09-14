@@ -6,7 +6,7 @@
  */
 
 #include "status.h"
-#include "Data/Stream/TemplateStream.h"
+#include "Data/Stream/TemplateFileStream.h"
 
 #include "WebServer.h"
 

@@ -13,13 +13,14 @@
  *
  */
 
-#include "SmingCore.h"
-#include <ESP8266LLMNR/ESP8266LLMNR.h>
+#include "ESP8266LLMNR/ESP8266LLMNR.h"
 
-#include <JsonConfigFile.h>
+#include "JsonConfigFile.h"
 #include "TimeManager.h"
 #include "NetworkManager.h"
 #include "FileManager.h"
+#include "Platform/Station.h"
+
 
 // Global instance
 NetworkManager networkManager;
@@ -68,21 +69,13 @@ static DEFINE_STRING_P(ATTR_IPADDR, "IP Address")
 // WiFi event names
 #if DEBUG_BUILD
 static DEFINE_STRING_P(STAMODE_CONNECTED, "STAMODE_CONNECTED")
-;
 static DEFINE_STRING_P(STAMODE_DISCONNECTED, "STAMODE_DISCONNECTED")
-;
 static DEFINE_STRING_P(STAMODE_AUTHMODE_CHANGE, "STAMODE_AUTHMODE_CHANGE")
-;
 static DEFINE_STRING_P(STAMODE_GOT_IP, "STAMODE_GOT_IP")
-;
-static DEFINE_STRING_P(STAMODE_DHCP_TIMEOUT, "STAMODE_DHCP_TIMEOUT")
-;
+//static DEFINE_STRING_P(STAMODE_DHCP_TIMEOUT, "STAMODE_DHCP_TIMEOUT")
 static DEFINE_STRING_P(SOFTAPMODE_STACONNECTED, "SOFTAPMODE_STACONNECTED")
-;
 static DEFINE_STRING_P(SOFTAPMODE_STADISCONNECTED, "SOFTAPMODE_STADISCONNECTED")
-;
-static DEFINE_STRING_P(SOFTAPMODE_PROBEREQRECVED, "SOFTAPMODE_PROBEREQRECVED")
-;
+//static DEFINE_STRING_P(SOFTAPMODE_PROBEREQRECVED, "SOFTAPMODE_PROBEREQRECVED")
 #endif
 
 String macToStr(uint8_t hwaddr[6])
@@ -109,7 +102,6 @@ String authModeToStr(AUTH_MODE mode)
 }
 
 static DEFINE_STRING_P(STR_REASON, "REASON_")
-;
 
 /*
  * Disconnect message

@@ -13,7 +13,7 @@
 #ifndef __WEBSOCKET_MANAGER_H
 #define __WEBSOCKET_MANAGER_H
 
-#include <SmingCore.h>
+#include "WString.h"
 #include "Network/Http/Websocket/WebsocketResource.h"
 #include "CommandHandler.h"
 

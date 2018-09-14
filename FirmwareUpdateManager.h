@@ -8,9 +8,10 @@
 #ifndef __FIRMWARE_UPDATE_MANAGER_H
 #define __FIRMWARE_UPDATE_MANAGER_H
 
-#include <SmingCore.h>
-#include <appcode/rboot-api.h>
-#include <fwpack.h>
+#include "WString.h"
+#include "OSTimer.h"
+#include "../rboot/appcode/rboot-api.h"
+#include "../fwpack/fwpack.h"
 
 #include "CommandHandler.h"
 

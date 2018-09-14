@@ -8,8 +8,10 @@
 #ifndef __WEBSERVER_H
 #define __WEBSERVER_H
 
-#include "SmingCore.h"
+#include "Network/HttpServer.h"
 #include "CommandHandler.h"
+#include <functional>
+
 
 DECLARE_STRING_P(FILE_INDEX_HTML)
 
