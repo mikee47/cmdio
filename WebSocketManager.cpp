@@ -13,7 +13,7 @@
 #endif
 
 // Messages
-DEFINE_STRING_P(ATTR_METHODS, "methods")
+DEFINE_FSTR(ATTR_METHODS, "methods")
 
 WebSocketManager socketManager;
 
@@ -66,7 +66,7 @@ public:
  * reused. Fortunately, there's a proper random number generator available.
  *
  */
-DEFINE_STRING_P(ATTR_CID, "cid")
+DEFINE_FSTR(ATTR_CID, "cid")
 
 command_connection_t WebSocketManager::findConnection(uint32_t cid)
 {
@@ -93,19 +93,17 @@ void WebSocketManager::loginComplete(command_connection_t connection, JsonObject
 	 * If the client provided a CID it will identify an previous socket instance.
 	 * It may not exist (if it's old) but if so we close it now to preserve resources.
 	 */
-	{
-		auto cc = findConnection(json[ATTR_CID()].asString());
-		if (cc && cc != connection)
-			delete cc;
-	}
+	auto cc = findConnection(json[ATTR_CID].asString());
+	if (cc && cc != connection)
+		delete cc;
 
 	// By return we provide this connection's CID, which the client will store as a cookie
-	json[ATTR_CID()] = String(connection->cid(), 16);
+	json[ATTR_CID] = String(connection->cid(), 16);
 
 	/*
 	 * Client gets a list of authorised methods.
 	 */
-	JsonArray& methods = json.createNestedArray(ATTR_METHODS());
+	JsonArray& methods = json.createNestedArray(ATTR_METHODS);
 	for (unsigned i = 0; i < m_handlers.count(); ++i) {
 		ICommandHandler* handler = m_handlers[i];
 		if (connection->access() >= handler->minAccess())
@@ -126,7 +124,7 @@ ICommandHandler* WebSocketManager::findHandler(const char* method)
 
 void WebSocketManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
-	const char* method = json[ATTR_METHOD()];
+	const char* method = json[ATTR_METHOD];
 
 	ICommandHandler* handler = findHandler(method);
 	if (!handler) {
@@ -138,7 +136,7 @@ void WebSocketManager::handleMessage(command_connection_t connection, JsonObject
 	else
 		handler->handleMessage(connection, json);
 
-	if (!json.containsKey(DONT_RESPOND()))
+	if (!json.containsKey(DONT_RESPOND))
 		connection->send(json);
 }
 

@@ -15,7 +15,7 @@
 #include "Platform/Station.h"
 #include "WString.h"
 
-DECLARE_STRING_P(ATTR_PASSWORD)
+DECLARE_FSTR(ATTR_PASSWORD)
 
 /*
  * Simple config structure for wifi ap or station

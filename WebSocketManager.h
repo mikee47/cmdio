@@ -17,7 +17,7 @@
 #include "Network/Http/Websocket/WebsocketResource.h"
 #include "CommandHandler.h"
 
-DECLARE_STRING_P(ATTR_CID)
+DECLARE_FSTR(ATTR_CID)
 
 class WebSocketManager
 {

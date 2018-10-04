@@ -13,7 +13,7 @@
 #include <functional>
 
 
-DECLARE_STRING_P(FILE_INDEX_HTML)
+DECLARE_FSTR(FILE_INDEX_HTML)
 
 /** @brief  Callback function for web server access authorisation
  *

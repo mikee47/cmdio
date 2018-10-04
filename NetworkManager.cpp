@@ -36,46 +36,46 @@ static const char MDNS_SERVER_NAME[] = "stslc";
 static const char MDNS_VERSION[] = "version = now";  //stslc_0.1
 
 // System config file (private - secure)
-static DEFINE_STRING_P(FILE_NETWORK_CONFIG, ".network.json")
-static DEFINE_STRING_P(ATTR_HOSTNAME, "hostname")
-static DEFINE_STRING_P(ATTR_SERVER_PORT, "server-port")
-static DEFINE_STRING_P(DEFAULT_HOSTNAME, "lightcon")
+static DEFINE_FSTR(FILE_NETWORK_CONFIG, ".network.json")
+static DEFINE_FSTR(ATTR_HOSTNAME, "hostname")
+static DEFINE_FSTR(ATTR_SERVER_PORT, "server-port")
+static DEFINE_FSTR(DEFAULT_HOSTNAME, "lightcon")
 static const uint16_t DEFAULT_SERVER_PORT = 80;
 
 // WiFi details
-static DEFINE_STRING_P(CONFIG_AP, "accesspoint")
-static DEFINE_STRING_P(ATTR_SSID, "ssid")
-DEFINE_STRING_P(ATTR_PASSWORD, "password")
-static DEFINE_STRING_P(DEFAULT_AP_SSID, "STS Lightcon")
-static DEFINE_STRING_P(DEFAULT_AP_PASSWORD, "sts welcome")
-static DEFINE_STRING_P(ATTR_STATION, "station")
+static DEFINE_FSTR(CONFIG_AP, "accesspoint")
+static DEFINE_FSTR(ATTR_SSID, "ssid")
+DEFINE_FSTR(ATTR_PASSWORD, "password")
+static DEFINE_FSTR(DEFAULT_AP_SSID, "STS Lightcon")
+static DEFINE_FSTR(DEFAULT_AP_PASSWORD, "sts welcome")
+static DEFINE_FSTR(ATTR_STATION, "station")
 
 // WiFi scan information
-static DEFINE_STRING_P(ATTR_NETWORKS, "networks")
-static DEFINE_STRING_P(ATTR_BSSID, "bssid")
-static DEFINE_STRING_P(ATTR_AUTH, "auth")
-static DEFINE_STRING_P(ATTR_CHANNEL, "channel")
-static DEFINE_STRING_P(ATTR_RSSI, "rssi")
-static DEFINE_STRING_P(ATTR_HIDDEN, "hidden")
-static DEFINE_STRING_P(ATTR_SIMPLEPAIR, "simplepair")
+static DEFINE_FSTR(ATTR_NETWORKS, "networks")
+static DEFINE_FSTR(ATTR_BSSID, "bssid")
+static DEFINE_FSTR(ATTR_AUTH, "auth")
+static DEFINE_FSTR(ATTR_CHANNEL, "channel")
+static DEFINE_FSTR(ATTR_RSSI, "rssi")
+static DEFINE_FSTR(ATTR_HIDDEN, "hidden")
+static DEFINE_FSTR(ATTR_SIMPLEPAIR, "simplepair")
 
 // Commands
-static DEFINE_STRING_P(METHOD_NETWORK, "network")
-static DEFINE_STRING_P(COMMAND_SCAN, "scan")
-static DEFINE_STRING_P(COMMAND_CONFIG, "config")
-static DEFINE_STRING_P(ATTR_MACADDR, "MAC Address")
-static DEFINE_STRING_P(ATTR_IPADDR, "IP Address")
+static DEFINE_FSTR(METHOD_NETWORK, "network")
+static DEFINE_FSTR(COMMAND_SCAN, "scan")
+static DEFINE_FSTR(COMMAND_CONFIG, "config")
+static DEFINE_FSTR(ATTR_MACADDR, "MAC Address")
+static DEFINE_FSTR(ATTR_IPADDR, "IP Address")
 
 // WiFi event names
 #if DEBUG_BUILD
-static DEFINE_STRING_P(STAMODE_CONNECTED, "STAMODE_CONNECTED")
-static DEFINE_STRING_P(STAMODE_DISCONNECTED, "STAMODE_DISCONNECTED")
-static DEFINE_STRING_P(STAMODE_AUTHMODE_CHANGE, "STAMODE_AUTHMODE_CHANGE")
-static DEFINE_STRING_P(STAMODE_GOT_IP, "STAMODE_GOT_IP")
-//static DEFINE_STRING_P(STAMODE_DHCP_TIMEOUT, "STAMODE_DHCP_TIMEOUT")
-static DEFINE_STRING_P(SOFTAPMODE_STACONNECTED, "SOFTAPMODE_STACONNECTED")
-static DEFINE_STRING_P(SOFTAPMODE_STADISCONNECTED, "SOFTAPMODE_STADISCONNECTED")
-//static DEFINE_STRING_P(SOFTAPMODE_PROBEREQRECVED, "SOFTAPMODE_PROBEREQRECVED")
+#define STAMODE_CONNECTED _F("STAMODE_CONNECTED")
+#define STAMODE_DISCONNECTED _F("STAMODE_DISCONNECTED")
+#define STAMODE_AUTHMODE_CHANGE _F("STAMODE_AUTHMODE_CHANGE")
+#define STAMODE_GOT_IP _F("STAMODE_GOT_IP")
+//#define STAMODE_DHCP_TIMEOUT _F("STAMODE_DHCP_TIMEOUT")
+#define SOFTAPMODE_STACONNECTED _F("SOFTAPMODE_STACONNECTED")
+#define SOFTAPMODE_STADISCONNECTED _F("SOFTAPMODE_STADISCONNECTED")
+//#define SOFTAPMODE_PROBEREQRECVED _F("SOFTAPMODE_PROBEREQRECVED")
 #endif
 
 String macToStr(uint8_t hwaddr[6])
@@ -101,8 +101,6 @@ String authModeToStr(AUTH_MODE mode)
 	}
 }
 
-static DEFINE_STRING_P(STR_REASON, "REASON_")
-
 /*
  * Disconnect message
  */
@@ -110,39 +108,39 @@ static String reasonToStr(uint8_t reason)
 {
 #define XX(_tag) \
   case REASON_ ## _tag: \
-    return String_P(PSTR(#_tag));
+    return F(#_tag);
 
 	switch (reason) {
 	XX(UNSPECIFIED)
-			XX(AUTH_EXPIRE)
-			XX(AUTH_LEAVE)
-			XX(ASSOC_EXPIRE)
-			XX(ASSOC_TOOMANY)
-			XX(NOT_AUTHED)
-			XX(NOT_ASSOCED)
-			XX(ASSOC_LEAVE)
-			XX(ASSOC_NOT_AUTHED)
-			XX(DISASSOC_PWRCAP_BAD)
-			XX(DISASSOC_SUPCHAN_BAD)
-			XX(IE_INVALID)
-			XX(MIC_FAILURE)
-			XX(4WAY_HANDSHAKE_TIMEOUT)
-			XX(GROUP_KEY_UPDATE_TIMEOUT)
-			XX(IE_IN_4WAY_DIFFERS)
-			XX(GROUP_CIPHER_INVALID)
-			XX(PAIRWISE_CIPHER_INVALID)
-			XX(AKMP_INVALID)
-			XX(UNSUPP_RSN_IE_VERSION)
-			XX(INVALID_RSN_IE_CAP)
-			XX(802_1X_AUTH_FAILED)
-			XX(CIPHER_SUITE_REJECTED)
-			XX(BEACON_TIMEOUT)
-			XX(NO_AP_FOUND)
-			XX(AUTH_FAIL)
-			XX(ASSOC_FAIL)
-			XX(HANDSHAKE_TIMEOUT)
-			default:
-		return STR_REASON() + String(reason);
+	XX(AUTH_EXPIRE)
+	XX(AUTH_LEAVE)
+	XX(ASSOC_EXPIRE)
+	XX(ASSOC_TOOMANY)
+	XX(NOT_AUTHED)
+	XX(NOT_ASSOCED)
+	XX(ASSOC_LEAVE)
+	XX(ASSOC_NOT_AUTHED)
+	XX(DISASSOC_PWRCAP_BAD)
+	XX(DISASSOC_SUPCHAN_BAD)
+	XX(IE_INVALID)
+	XX(MIC_FAILURE)
+	XX(4WAY_HANDSHAKE_TIMEOUT)
+	XX(GROUP_KEY_UPDATE_TIMEOUT)
+	XX(IE_IN_4WAY_DIFFERS)
+	XX(GROUP_CIPHER_INVALID)
+	XX(PAIRWISE_CIPHER_INVALID)
+	XX(AKMP_INVALID)
+	XX(UNSUPP_RSN_IE_VERSION)
+	XX(INVALID_RSN_IE_CAP)
+	XX(802_1X_AUTH_FAILED)
+	XX(CIPHER_SUITE_REJECTED)
+	XX(BEACON_TIMEOUT)
+	XX(NO_AP_FOUND)
+	XX(AUTH_FAIL)
+	XX(ASSOC_FAIL)
+	XX(HANDSHAKE_TIMEOUT)
+	default:
+		return F("REASON_") + String(reason);
 	}
 #undef XX
 }
@@ -180,7 +178,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_STAMODE_CONNECTED: {
 #if DEBUG_BUILD
 		Event_StaMode_Connected_t& e = evt->event_info.connected;
-		debug_i("%s('%s', #%d)", STAMODE_CONNECTED().c_str(), e.ssid, e.channel);
+		debug_i("%s('%s', #%d)", STAMODE_CONNECTED, e.ssid, e.channel);
 #endif
 		if (m_configConnection)
 			configComplete(0);
@@ -190,7 +188,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_STAMODE_DISCONNECTED: {
 		Event_StaMode_Disconnected_t& e = evt->event_info.disconnected;
 #if DEBUG_BUILD
-		debug_i("%s('%s', %s, %u %s)", STAMODE_DISCONNECTED().c_str(), e.ssid, macToStr(e.bssid).c_str(), e.reason, reasonToStr(e.reason).c_str());
+		debug_i("%s('%s', %s, %u %s)", STAMODE_DISCONNECTED, e.ssid, macToStr(e.bssid).c_str(), e.reason, reasonToStr(e.reason).c_str());
 #endif
 		statusChanged(nwc_disconnected);
 		if (m_configConnection)
@@ -201,7 +199,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_STAMODE_AUTHMODE_CHANGE: {
 #if DEBUG_BUILD
 		Event_StaMode_AuthMode_Change_t& e = evt->event_info.auth_change;
-		debug_i("%s(%d, %d)", STAMODE_AUTHMODE_CHANGE().c_str(), e.old_mode, e.new_mode);
+		debug_i("%s(%d, %d)", STAMODE_AUTHMODE_CHANGE, e.old_mode, e.new_mode);
 #endif
 		break;
 	}
@@ -210,7 +208,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 		// WiFi station now operational
 #if DEBUG_BUILD
 		Event_StaMode_Got_IP_t& e = evt->event_info.got_ip;
-		debug_i("%s(%s)", STAMODE_GOT_IP().c_str(), IPAddress(e.ip).toString().c_str());
+		debug_i("%s(%s)", STAMODE_GOT_IP, IPAddress(e.ip).toString().c_str());
 #endif
 		statusChanged(nwc_connected);
 		startMDNS();
@@ -221,7 +219,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_SOFTAPMODE_STACONNECTED: {
 #if DEBUG_BUILD
 		Event_SoftAPMode_StaConnected_t& e = evt->event_info.sta_connected;
-		debug_i("%s(%s, %u)", SOFTAPMODE_STACONNECTED().c_str(), macToStr(e.mac).c_str(), e.aid);
+		debug_i("%s(%s, %u)", SOFTAPMODE_STACONNECTED, macToStr(e.mac).c_str(), e.aid);
 #endif
 		break;
 	}
@@ -229,7 +227,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_SOFTAPMODE_STADISCONNECTED: {
 #if DEBUG_BUILD
 		Event_SoftAPMode_StaDisconnected_t& e = evt->event_info.sta_disconnected;
-		debug_i("%s(%s, %u)", SOFTAPMODE_STADISCONNECTED().c_str(), macToStr(e.mac).c_str(), e.aid);
+		debug_i("%s(%s, %u)", SOFTAPMODE_STADISCONNECTED, macToStr(e.mac).c_str(), e.aid);
 #endif
 		break;
 	}
@@ -237,7 +235,7 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_SOFTAPMODE_PROBEREQRECVED: {
 #if DEBUG_BUILD
 //    Event_SoftAPMode_ProbeReqRecved_t& e = evt->event_info.ap_probereqrecved;
-//    debug_i("%s(%u, %s)", SOFTAPMODE_PROBEREQRECVED().c_str(), e.rssi, macToStr(e.mac).c_str());
+//    debug_i("%s(%u, %s)", SOFTAPMODE_PROBEREQRECVED, e.rssi, macToStr(e.mac).c_str());
 #endif
 		break;
 	}
@@ -267,10 +265,10 @@ bool NetworkManager::accessPointMode(bool enable)
 		wifi_info_t info;
 		{
 			JsonConfigFile config;
-			config.load(FILE_NETWORK_CONFIG());
-			JsonObject& ap = config[CONFIG_AP()];
-			info.ssid = ap[ATTR_SSID()].asString() ? : DEFAULT_AP_SSID();
-			info.password = ap[ATTR_PASSWORD()].asString() ? : DEFAULT_AP_PASSWORD();
+			config.load(FILE_NETWORK_CONFIG);
+			JsonObject& ap = config[CONFIG_AP];
+			info.ssid = ap[ATTR_SSID].asString() ? : String(DEFAULT_AP_SSID);
+			info.password = ap[ATTR_PASSWORD].asString() ? : String(DEFAULT_AP_PASSWORD);
 		}
 
 		wifi_station_set_reconnect_policy(false);
@@ -315,15 +313,15 @@ void NetworkManager::configure(command_connection_t connection, JsonObject& json
 	}
 
 	// Hostname is an optional parameter
-	const char* hostname = json[ATTR_HOSTNAME()];
+	const char* hostname = json[ATTR_HOSTNAME];
 	if (hostname) {
 		if (WifiStation.getHostname() != hostname) {
 			m_hostname = hostname;
 			WifiStation.setHostname(m_hostname);
 			JsonConfigFile config;
-			config.load(FILE_NETWORK_CONFIG());
-			config[ATTR_HOSTNAME()] = m_hostname;
-			config.save(FILE_NETWORK_CONFIG());
+			config.load(FILE_NETWORK_CONFIG);
+			config[ATTR_HOSTNAME] = m_hostname;
+			config.save(FILE_NETWORK_CONFIG);
 		}
 	}
 
@@ -342,10 +340,10 @@ void NetworkManager::configure(command_connection_t connection, JsonObject& json
 		setError(json, ioe_nomem);
 		return;
 	}
-	info->ssid = json[ATTR_SSID()].asString();
-	info->password = json[ATTR_PASSWORD()].asString();
+	info->ssid = json[ATTR_SSID].asString();
+	info->password = json[ATTR_PASSWORD].asString();
 	// Don't send password back in response
-	json.remove(ATTR_PASSWORD());
+	json.remove(ATTR_PASSWORD);
 
 	m_configConnection = connection;
 
@@ -354,13 +352,13 @@ void NetworkManager::configure(command_connection_t connection, JsonObject& json
 		// The settings are saved by the ESP8266 firmware
 //    WifiAccessPoint.enable(false);
 		if (WifiStation.isConnected())
-		WifiStation.disconnect();
+			WifiStation.disconnect();
 		else
-		WifiStation.enable(true);
+			WifiStation.enable(true);
 		bool res = WifiStation.config(info->ssid, info->password);
 		delete info;
 		if (res)
-		res = WifiStation.connect();
+			res = WifiStation.connect();
 
 		if (res) {
 			debug_i("Hostname '%s' connecting to SSID '%s'", WifiStation.getHostname().c_str(), WifiStation.getSSID().c_str());
@@ -398,8 +396,8 @@ void NetworkManager::configComplete(uint8_t errReason)
 	if (m_configConnection) {
 		DynamicJsonBuffer buffer;
 		JsonObject& json = buffer.createObject();
-		json[ATTR_METHOD()] = METHOD_NETWORK();
-		json[ATTR_COMMAND()] = COMMAND_CONFIG();
+		json[ATTR_METHOD] = String(METHOD_NETWORK);
+		json[ATTR_COMMAND] = String(COMMAND_CONFIG);
 		if (errReason)
 			setError(json, errReason, reasonToStr(errReason));
 		else
@@ -427,27 +425,27 @@ void NetworkManager::scanComplete(void* arg, STATUS status)
 
 	DynamicJsonBuffer buffer;
 	JsonObject& json = buffer.createObject();
-	json[ATTR_METHOD()] = METHOD_NETWORK();
-	json[ATTR_COMMAND()] = COMMAND_SCAN();
+	json[ATTR_METHOD] = String(METHOD_NETWORK);
+	json[ATTR_COMMAND] = String(COMMAND_SCAN);
 
 	if (status != OK) {
 		setError(json, status);
 	}
 	else {
 		setSuccess(json);
-		JsonArray& networks = json.createNestedArray(ATTR_NETWORKS());
+		JsonArray& networks = json.createNestedArray(ATTR_NETWORKS);
 
 		BssInfoEnum bss;
 		if (bss.init(static_cast<bss_info*>(arg)))
 			do {
 				JsonObject& nw = networks.createNestedObject();
-				nw[ATTR_SSID()] = bss.SSID();
-				nw[ATTR_BSSID()] = bss.BSSID();
-				nw[ATTR_AUTH()] = bss.authModeStr();
-				nw[ATTR_CHANNEL()] = bss.channel();
-				nw[ATTR_RSSI()] = bss.rssi();
-				nw[ATTR_HIDDEN()] = bss.hidden();
-				nw[ATTR_SIMPLEPAIR()] = bss.simplePair();
+				nw[ATTR_SSID] = bss.SSID();
+				nw[ATTR_BSSID] = bss.BSSID();
+				nw[ATTR_AUTH] = bss.authModeStr();
+				nw[ATTR_CHANNEL] = bss.channel();
+				nw[ATTR_RSSI] = bss.rssi();
+				nw[ATTR_HIDDEN] = bss.hidden();
+				nw[ATTR_SIMPLEPAIR] = bss.simplePair();
 			} while (bss.next());
 	}
 
@@ -494,12 +492,12 @@ void NetworkManager::begin()
 
 	{
 		JsonConfigFile config;
-		config.load(FILE_NETWORK_CONFIG());
-		m_hostname = config[ATTR_HOSTNAME()].asString() ? : DEFAULT_HOSTNAME();
+		config.load(FILE_NETWORK_CONFIG);
+		m_hostname = config[ATTR_HOSTNAME].asString() ? : String(DEFAULT_HOSTNAME);
 		WifiStation.setHostname(m_hostname);
-		m_serverPort = config[ATTR_SERVER_PORT()].as<uint16_t>() ? : DEFAULT_SERVER_PORT;
+		m_serverPort = config[ATTR_SERVER_PORT].as<uint16_t>() ? : DEFAULT_SERVER_PORT;
 
-		JsonObject& station = config[ATTR_STATION()];
+		JsonObject& station = config[ATTR_STATION];
 		if (station.success())
 			configure(nullptr, station);
 	}
@@ -507,26 +505,26 @@ void NetworkManager::begin()
 
 String NetworkManager::getMethod() const
 {
-	return METHOD_NETWORK();
+	return METHOD_NETWORK;
 }
 
 void NetworkManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
-	const char* command = json[ATTR_COMMAND()];
+	const char* command = json[ATTR_COMMAND];
 
-	if (COMMAND_INFO() == command) {
-		json[ATTR_MACADDR()] = WifiStation.getMAC();
-		json[ATTR_IPADDR()] = WifiStation.getIP().toString();
-		json[ATTR_SSID()] = WifiStation.getSSID();
+	if (COMMAND_INFO == command) {
+		json[ATTR_MACADDR] = WifiStation.getMAC();
+		json[ATTR_IPADDR] = WifiStation.getIP().toString();
+		json[ATTR_SSID] = WifiStation.getSSID();
 		return;
 	}
 
-	if (COMMAND_SCAN() == command) {
+	if (COMMAND_SCAN == command) {
 		scan(connection, json);
 		return;
 	}
 
-	if (COMMAND_CONFIG() == command) {
+	if (COMMAND_CONFIG == command) {
 		configure(connection, json);
 		return;
 	}

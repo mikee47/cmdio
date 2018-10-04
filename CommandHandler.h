@@ -13,11 +13,11 @@
 #include "CommandConnection.h"
 
 // Tag used in messages to identify method; responses must contain the same method
-DECLARE_STRING_P(ATTR_METHOD)
-DECLARE_STRING_P(ATTR_COMMAND)
-DECLARE_STRING_P(COMMAND_INFO)
-DECLARE_STRING_P(ATTR_NAME)
-DECLARE_STRING_P(DONT_RESPOND)
+DECLARE_FSTR(ATTR_METHOD)
+DECLARE_FSTR(ATTR_COMMAND)
+DECLARE_FSTR(COMMAND_INFO)
+DECLARE_FSTR(ATTR_NAME)
+DECLARE_FSTR(DONT_RESPOND)
 
 /*
  * Websockets stay open indefinitely, but we enforce a couple of timeouts.

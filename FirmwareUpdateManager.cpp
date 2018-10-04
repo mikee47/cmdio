@@ -30,12 +30,12 @@
 #define MIN_CHUNK_SIZE  (2 * 1024)
 #define MAX_CHUNK_SIZE  (128 * 1024)
 
-static DEFINE_STRING_P(METHOD_FWUPDATE, "fwupdate")
-static DEFINE_STRING_P(COMMAND_UPLOAD, "upload")
-static DEFINE_STRING_P(ATTR_IMAGESIZE, "imagesize")
-static DEFINE_STRING_P(ATTR_CHUNKSIZE, "chunksize")
-static DEFINE_STRING_P(COMMAND_APPLY, "apply")
-static DEFINE_STRING_P(COMMAND_CANCEL, "cancel")
+static DEFINE_FSTR(METHOD_FWUPDATE, "fwupdate")
+static DEFINE_FSTR(COMMAND_UPLOAD, "upload")
+static DEFINE_FSTR(ATTR_IMAGESIZE, "imagesize")
+static DEFINE_FSTR(ATTR_CHUNKSIZE, "chunksize")
+static DEFINE_FSTR(COMMAND_APPLY, "apply")
+static DEFINE_FSTR(COMMAND_CANCEL, "cancel")
 
 //TODO: This needs to be stored in a fixed location unaffected by firmware updating
 static const crypt_key_t PROGMEM g_deviceKey = {
@@ -71,9 +71,9 @@ void FirmwareUpdateSession::notify(request_status_t status, ioerror_t err)
 	if (m_connection) {
 		DynamicJsonBuffer buffer;
 		JsonObject& json = buffer.createObject();
-		json[ATTR_METHOD()] = METHOD_FWUPDATE();
-		json[ATTR_COMMAND()] = COMMAND_UPLOAD();
-		json[ATTR_IMAGESIZE()] = m_bytesReceived;
+		json[ATTR_METHOD] = String(METHOD_FWUPDATE);
+		json[ATTR_COMMAND] = String(COMMAND_UPLOAD);
+		json[ATTR_IMAGESIZE] = m_bytesReceived;
 
 		if (status == status_pending)
 			setPending(json);
@@ -251,28 +251,28 @@ ioerror_t FirmwareUpdateManager::startUpload(command_connection_t connection, ui
 
 String FirmwareUpdateManager::getMethod() const
 {
-	return METHOD_FWUPDATE();
+	return METHOD_FWUPDATE;
 }
 
 void FirmwareUpdateManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
-	const char* command = json[ATTR_COMMAND()];
+	const char* command = json[ATTR_COMMAND];
 
-	if (COMMAND_UPLOAD() == command) {
-		ioerror_t err = startUpload(connection, json[ATTR_IMAGESIZE()], json[ATTR_CHUNKSIZE()]);
+	if (COMMAND_UPLOAD == command) {
+		ioerror_t err = startUpload(connection, json[ATTR_IMAGESIZE], json[ATTR_CHUNKSIZE]);
 		if (err)
 			setError(json, err);
 		else
-			json[DONT_RESPOND()] = true;
+			json[DONT_RESPOND] = true;
 		return;
 	}
 
 	ioerror_t err;
 	if (!checkSession(connection))
 		err = ioe_bad_command;
-	else if (COMMAND_APPLY() == command)
+	else if (COMMAND_APPLY == command)
 		err = m_session->apply();
-	else if (COMMAND_CANCEL() == command)
+	else if (COMMAND_CANCEL == command)
 		err = ioe_success;
 	else
 		err = ioe_bad_command;

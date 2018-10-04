@@ -23,7 +23,7 @@ class FileManager;
 #define ERROR_TIMEOUT   (FSERR_USER - 1)	///< Transfer timed out
 #define ERROR_TOO_BIG	(FSERR_USER - 2)	///< Received more file data than header indicated
 
-DECLARE_STRING_P(ATTR_ACCESS)
+DECLARE_FSTR(ATTR_ACCESS)
 
 // For handling a file upload
 class FileUpload

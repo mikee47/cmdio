@@ -16,32 +16,33 @@
 //#define FWFS_ONLY
 
 
-DEFINE_STRING_P(ATTR_ACCESS, "access")
+DEFINE_FSTR(ATTR_ACCESS, "access")
 
-static DEFINE_STRING_P(METHOD_FILES, "files")
+static DEFINE_FSTR(METHOD_FILES, "files")
 
 // LIST
-static DEFINE_STRING_P(COMMAND_LIST, "list")
-static DEFINE_STRING_P(ATTR_FILES, "files")
-static DEFINE_STRING_P(ATTR_DIR, "dir")
+static DEFINE_FSTR(COMMAND_LIST, "list")
+static DEFINE_FSTR(ATTR_FILES, "files")
+static DEFINE_FSTR(ATTR_DIR, "dir")
 // GET
-static DEFINE_STRING_P(COMMAND_GET, "get")
+static DEFINE_FSTR(COMMAND_GET, "get")
 // UPLOAD
-static DEFINE_STRING_P(COMMAND_UPLOAD, "upload")
+//static DEFINE_FSTR(COMMAND_UPLOAD, "upload")
+DECLARE_FSTR(COMMAND_UPLOAD)
 // DELETE
-static DEFINE_STRING_P(COMMAND_DELETE, "delete")
+static DEFINE_FSTR(COMMAND_DELETE, "delete")
 // STAT/UPLOAD
-static DEFINE_STRING_P(ATTR_SIZE, "size")
-static DEFINE_STRING_P(ATTR_ATTR, "attr")
-static DEFINE_STRING_P(ATTR_MTIME, "mtime")
-static DEFINE_STRING_P(ATTR_WRITTEN, "written")
+static DEFINE_FSTR(ATTR_SIZE, "size")
+static DEFINE_FSTR(ATTR_ATTR, "attr")
+static DEFINE_FSTR(ATTR_MTIME, "mtime")
+static DEFINE_FSTR(ATTR_WRITTEN, "written")
 // INFO
-static DEFINE_STRING_P(ATTR_VOLUME_SIZE, "volumesize")
-static DEFINE_STRING_P(ATTR_FREE_SPACE, "freespace")
+static DEFINE_FSTR(ATTR_VOLUME_SIZE, "volumesize")
+static DEFINE_FSTR(ATTR_FREE_SPACE, "freespace")
 // CHECK
-static DEFINE_STRING_P(COMMAND_CHECK, "check")
+static DEFINE_FSTR(COMMAND_CHECK, "check")
 // FORMAT
-static DEFINE_STRING_P(COMMAND_FORMAT, "format")
+static DEFINE_FSTR(COMMAND_FORMAT, "format")
 
 // This is DWORD aligned so we can access it directly
 extern const uint8_t __fwfiles_data[] PROGMEM;
@@ -50,17 +51,17 @@ extern const uint8_t __fwfiles_data[] PROGMEM;
 
 static void getFileInfo(JsonObject& json, const FileStat& stat)
 {
-	if (!json.containsKey(ATTR_NAME())) {
-		// Needs the cast to make Json create a copy of the string
-		json[ATTR_NAME()] = stat.name.length ? String(stat.name) : "";
-	}
-	json[ATTR_SIZE()] = stat.size;
+	String attrName = ATTR_NAME;
+	if (!json.containsKey(attrName))
+		json[attrName] = stat.name.length ? String(stat.name) : String::empty;
+	json[ATTR_SIZE] = stat.size;
+	FileSystemInfo fsi;
+	stat.fs->getinfo(fsi);
+	json["fs"] = (int)fsi.type;
 	char buf[10];
-	fileAclToStr(stat.acl, buf, sizeof(buf));
-	json[ATTR_ACCESS()] = String(buf);	// ArduinoJson bug, doesn't copy char* as it should
-	fileAttrToStr(stat.attr, buf, sizeof(buf));
-	json[ATTR_ATTR()] = String(buf);
-	json[ATTR_MTIME()] = stat.mtime;
+	json[ATTR_ACCESS] = String(fileAclToStr(stat.acl, buf, sizeof(buf)));
+	json[ATTR_ATTR] = String(fileAttrToStr(stat.attr, buf, sizeof(buf)));
+	json[ATTR_MTIME] = stat.mtime;
 }
 
 static void getFileInfo(JsonObject& json, file_t file)
@@ -133,9 +134,9 @@ void FileUpload::endUpload()
 	if (m_connection) {
 		DynamicJsonBuffer buffer;
 		JsonObject& json = buffer.createObject();
-		json[ATTR_METHOD()] = METHOD_FILES();
-		json[ATTR_COMMAND()] = COMMAND_UPLOAD();
-		json[ATTR_WRITTEN()] = m_written;
+		json[ATTR_METHOD] = String(METHOD_FILES);
+		json[ATTR_COMMAND] = String(COMMAND_UPLOAD);
+		json[ATTR_WRITTEN] = m_written;
 		getFileInfo(json, m_file);
 		if (m_error)
 			setError(json, m_error, fileGetErrorString(m_error));
@@ -207,12 +208,14 @@ void FileManager::endUpload()
 
 static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
 {
+	String attrName = ATTR_NAME;
+
 	for (auto& f : files)
-		if (name == f[ATTR_NAME()])
+		if (name == f[attrName])
 			return f;
 
 	auto& f = files.createNestedObject();
-	f[ATTR_NAME()] = name;
+	f[attrName] = name;
 	return f;
 }
 
@@ -240,10 +243,10 @@ static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
  */
 static void listFiles(JsonObject& json)
 {
-	auto& files = json.createNestedArray(ATTR_FILES());
+	auto& files = json.createNestedArray(ATTR_FILES);
 
 	filedir_t dir;
-	int res = fileOpenDir(json[ATTR_DIR()].asString(), &dir);
+	int res = fileOpenDir(json[ATTR_DIR].asString(), &dir);
 	if (res >= 0) {
 		FileNameStat stat;
 		while ((res = fileReadDir(dir, &stat)) >= 0) {
@@ -262,11 +265,12 @@ static void listFiles(JsonObject& json)
 static void deleteFiles(JsonObject& json)
 {
 	int res = FS_OK;
-	String dir = json[ATTR_DIR()].asString();
-	JsonArray& files = json[ATTR_FILES()];
+	String dir = json[ATTR_DIR].asString();
+	JsonArray& files = json[ATTR_FILES];
+	auto attrName = ATTR_NAME;
 	for (unsigned i = 0; i < files.size(); ++i) {
 		JsonObject& file = files[i];
-		String path = dir + "/" + file[ATTR_NAME()].asString();
+		String path = dir + "/" + file[attrName].asString();
 		int err = fileDelete(path);
 		if (err < 0) {
 			setError(file, err, fileGetErrorString(err));
@@ -291,8 +295,8 @@ static void getInfo(JsonObject& json)
 		setError(json, err, fileGetErrorString(err));
 		return;
 	}
-	json[ATTR_VOLUME_SIZE()] = info.volumeSize;
-	json[ATTR_FREE_SPACE()] = info.freeSpace;
+	json[ATTR_VOLUME_SIZE] = info.volumeSize;
+	json[ATTR_FREE_SPACE] = info.freeSpace;
 	setSuccess(json);
 }
 
@@ -319,7 +323,7 @@ static void format(JsonObject& json)
 
 String FileManager::getMethod() const
 {
-	return METHOD_FILES();
+	return METHOD_FILES;
 }
 
 /*
@@ -361,19 +365,17 @@ ioerror_t FileManager::getFile(command_connection_t connection, JsonObject& json
 	return setError(json, ioe_not_impl);
 	/*
 
-	 const char* name = json[ATTR_NAME()];
-	 if (!name) {
+	 const char* path = json[ATTR_PATH()];
+	 if (!path) {
 		 setError(json, ioe_bad_param);
 		 return;
 	 }
 
-	 file_t fh = fileOpen(filename, eFO_ReadOnly);
-	 if (fh < 0) {
+	 file_t fh = fileOpen(path, eFO_ReadOnly);
+	 if (fh < 0)
 	 	 return ioe_spiffs;
 
-	 }
-
-	 filestream_t fs = openFile(filename);
+	 filestream_t fs = openFile(fh);
 	 if (!fs)
 	 	 return;
 
@@ -394,8 +396,8 @@ ioerror_t FileManager::getFile(command_connection_t connection, JsonObject& json
 
 ioerror_t FileManager::startUpload(command_connection_t connection, JsonObject& json)
 {
-	const char* name = json[ATTR_NAME()];
-	size_t size = json[ATTR_SIZE()];
+	const char* name = json[ATTR_NAME];
+	size_t size = json[ATTR_SIZE];
 	if (name == nullptr || size <= 0)
 		return setError(json, ioe_bad_param);
 
@@ -417,20 +419,20 @@ void FileManager::handleMessage(command_connection_t connection, JsonObject& jso
 {
 	endUpload();
 
-	const char* cmd = json[ATTR_COMMAND()];
-	if (COMMAND_GET() == cmd)
+	const char* cmd = json[ATTR_COMMAND];
+	if (COMMAND_GET == cmd)
 		getFile(connection, json);
-	else if (COMMAND_UPLOAD() == cmd)
+	else if (COMMAND_UPLOAD == cmd)
 		startUpload(connection, json);
-	else if (COMMAND_LIST() == cmd)
+	else if (COMMAND_LIST == cmd)
 		listFiles(json);
-	else if (COMMAND_DELETE() == cmd)
+	else if (COMMAND_DELETE == cmd)
 		deleteFiles(json);
-	else if (COMMAND_INFO() == cmd)
+	else if (COMMAND_INFO == cmd)
 		getInfo(json);
-	else if (COMMAND_CHECK() == cmd)
+	else if (COMMAND_CHECK == cmd)
 		check(json);
-	else if (COMMAND_FORMAT() == cmd)
+	else if (COMMAND_FORMAT == cmd)
 		format(json);
 	else
 		ICommandHandler::handleMessage(connection, json);

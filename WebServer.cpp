@@ -14,14 +14,14 @@
 #include "NetworkManager.h"
 #include "WebSocketManager.h"
 
-DEFINE_STRING_P(FILE_INDEX_HTML, "index.html")
-static DEFINE_STRING_P(FILE_CONFIG_HTML, "config.html")
-static DEFINE_STRING_P(FILE_ERROR_HTML, "error.html")
+DEFINE_FSTR(FILE_INDEX_HTML, "index.html")
+static DEFINE_FSTR(FILE_CONFIG_HTML, "config.html")
+static DEFINE_FSTR(FILE_ERROR_HTML, "error.html")
 
-static DEFINE_STRING_P(METHOD_WEB, "web")
-static DEFINE_STRING_P(ATTR_PATH, "path")
-static DEFINE_STRING_P(ATTR_CLIENTS, "clients")
-static DEFINE_STRING_P(ATTR_SOCKETS, "sockets")
+static DEFINE_FSTR(METHOD_WEB, "web")
+static DEFINE_FSTR(ATTR_PATH, "path")
+static DEFINE_FSTR(ATTR_CLIENTS, "clients")
+static DEFINE_FSTR(ATTR_SOCKETS, "sockets")
 
 /*
  * All web file requests come here.
@@ -72,11 +72,11 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 #endif
 
 	if (file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file)))
-		file = FILE_INDEX_HTML();
+		file = FILE_INDEX_HTML;
 
 //  WifiAccessPoint.isEnabled() ? FILE_CONFIG_HTML() : FILE_INDEX_HTML();
 
-	sendFile(file, request.getQueryParameter(ATTR_CID()), response);
+	sendFile(file, request.getQueryParameter(ATTR_CID), response);
 
 	// For errors construct and send error page
 	if (response.code >= 400) {
@@ -95,11 +95,11 @@ destroyed early?
 
 		http_status status = static_cast<http_status>(response.code);
 
-		auto tmpl = new TemplateFileStream(FILE_ERROR_HTML());
+		auto tmpl = new TemplateFileStream(FILE_ERROR_HTML);
 		auto &vars = tmpl->variables();
-		vars[ATTR_PATH()] = request.uri.path();
-		vars[ATTR_CODE()] = status;
-		vars[ATTR_TEXT()] = httpGetStatusText(status);
+		vars[ATTR_PATH] = request.uri.path();
+		vars[ATTR_CODE] = status;
+		vars[ATTR_TEXT] = httpGetStatusText(status);
 		response.sendTemplate(tmpl);
 	}
 
@@ -185,18 +185,18 @@ void WebServer::stop()
 
 String WebServer::getMethod() const
 {
-	return METHOD_WEB();
+	return METHOD_WEB;
 }
 
 void WebServer::handleMessage(command_connection_t connection, JsonObject& json)
 {
-	const char* command = json[ATTR_COMMAND()];
+	const char* command = json[ATTR_COMMAND];
 
-	if (COMMAND_INFO() == command) {
-		json[ATTR_SOCKETS()] = WebSocketConnection::getActiveWebSockets().count();
+	if (COMMAND_INFO == command) {
+		json[ATTR_SOCKETS] = WebSocketConnection::getActiveWebSockets().count();
 
 		if (m_server) {
-			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS());
+			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS);
 			for (unsigned i = 0; i < m_server->connections().count(); i++) {
 				auto conn = m_server->connections()[i];
 				conns.add(conn->getRemoteIp().toString());

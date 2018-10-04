@@ -7,11 +7,11 @@
 
 #include "CommandHandler.h"
 
-DEFINE_STRING_P(ATTR_METHOD, "method")
-DEFINE_STRING_P(ATTR_COMMAND, "command")
-DEFINE_STRING_P(COMMAND_INFO, "info")
-DEFINE_STRING_P(ATTR_NAME, "name")
-DEFINE_STRING_P(DONT_RESPOND, "DR")
+DEFINE_FSTR(ATTR_METHOD, "method")
+DEFINE_FSTR(ATTR_COMMAND, "command")
+DEFINE_FSTR(COMMAND_INFO, "info")
+DEFINE_FSTR(ATTR_NAME, "name")
+DEFINE_FSTR(DONT_RESPOND, "DR")
 
 /*
  * We a socket identifier that is unique and doesn't get re-used even after reboots.
