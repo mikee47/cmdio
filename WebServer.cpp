@@ -69,6 +69,8 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 	IPAddress ip = connection.getRemoteIp();
 	uint16_t port = connection.getRemotePort();
 	debug_i("%s(%s[%u], '%s') from %s:%u", __FUNCTION__, request.methodStr().c_str(), request.method, file.c_str(), ip.toString().c_str(), port);
+	String s = request.uri.toString().c_str();
+	debug_hex(INFO, "URI", s.c_str(), s.length());
 #endif
 
 	if (file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file)))
@@ -97,7 +99,7 @@ destroyed early?
 
 		auto tmpl = new TemplateFileStream(FILE_ERROR_HTML);
 		auto &vars = tmpl->variables();
-		vars[ATTR_PATH] = request.uri.path();
+		vars[ATTR_PATH] = request.uri.Path;
 		vars[ATTR_CODE] = status;
 		vars[ATTR_TEXT] = httpGetStatusText(status);
 		response.sendTemplate(tmpl);
@@ -197,8 +199,9 @@ void WebServer::handleMessage(command_connection_t connection, JsonObject& json)
 
 		if (m_server) {
 			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS);
-			for (unsigned i = 0; i < m_server->connections().count(); i++) {
-				auto conn = m_server->connections()[i];
+			auto& connections = m_server->getConnections();
+			for (unsigned i = 0; i < connections.count(); i++) {
+				auto conn = connections[i];
 				conns.add(conn->getRemoteIp().toString());
 			}
 		}
