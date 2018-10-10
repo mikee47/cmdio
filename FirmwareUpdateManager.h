@@ -9,7 +9,7 @@
 #define __FIRMWARE_UPDATE_MANAGER_H
 
 #include "WString.h"
-#include "OSTimer.h"
+#include "SimpleTimer.h"
 #include "../rboot/appcode/rboot-api.h"
 #include "../fwpack/fwpack.h"
 
@@ -59,7 +59,7 @@ private:
 	// Indicates firmware has been received and checked, ready to be applied
 	bool m_firmwareReady = false;
 	// Detect timeout during transfer
-	OSTimer m_timer;
+	SimpleTimer m_timer;
 	// RBOOT slot for update
 	uint8_t m_slot = 0xFF;
 	rboot_write_status m_rboot_status;

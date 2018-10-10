@@ -11,7 +11,7 @@
 #include "CommandHandler.h"
 #include "status.h"
 #include "FileSystem.h"
-#include "OSTimer.h"
+#include "SimpleTimer.h"
 #include "Delegate.h"
 #include <functional>
 
@@ -70,7 +70,7 @@ private:
 	// SPIFFS error
 	int m_error = ERROR_TIMEOUT;
 	// Handles timeout condition
-	OSTimer m_timer;
+	SimpleTimer m_timer;
 
 };
 

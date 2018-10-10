@@ -374,7 +374,7 @@ void NetworkManager::configure(command_connection_t connection, JsonObject& json
 		networkManager.statusChanged(nwc_configChanged);
 	};
 
-	System.deferCallback(callback, reinterpret_cast<os_param_t>(info));
+	System.queueCallback(callback, reinterpret_cast<os_param_t>(info));
 
 	setPending(json);
 }
@@ -410,7 +410,7 @@ void NetworkManager::configComplete(uint8_t errReason)
 	}
 
 	if (!errReason && WifiAccessPoint.isEnabled())
-		System.deferCallback([](os_param_t) {
+		System.queueCallback([](os_param_t) {
 			networkManager.accessPointMode(false);
 		});
 }
