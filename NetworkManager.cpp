@@ -280,7 +280,7 @@ bool NetworkManager::accessPointMode(bool enable)
 		if (m_dnsServer)
 			m_dnsServer->start(DNS_PORT, "*", WifiAccessPoint.getIP());
 
-		debug_i("AP mode, SSID '%s' - %s", WifiAccessPoint.getSSID().c_str(), ret ? "OK" : "FAILED");
+		debug_i("AP mode, SSID '%s' - %s", WifiAccessPoint.getSSID().c_str(), ret ? _F("OK") : _F("FAILED"));
 	}
 	else {
 		WifiAccessPoint.enable(false);
@@ -539,7 +539,7 @@ void NetworkManager::ntpInit()
 
 void NetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
 {
-	debug_i("%s(%u)", __FUNCTION__, timestamp);
+	debug_i("NetworkManager::onNtpReceive(%u)", timestamp);
 	timeManager.update(timestamp);
 }
 

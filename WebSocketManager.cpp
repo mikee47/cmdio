@@ -40,14 +40,14 @@ public:
 	int checkHeaders(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
 	{
 		int ret = WebsocketResource::checkHeaders(connection, request, response);
-		debug_i("%s returned %d", __FUNCTION__, ret);
+		debug_i("checkHeaders() returned %d", ret);
 		return ret;
 	}
 
 	int processData(HttpServerConnection& connection, HttpRequest& request, char *at, int size)
 	{
 		int ret = WebsocketResource::processData(connection, request, at, size);
-		debug_i("%s returned %d", __FUNCTION__, ret);
+		debug_i("processData() returned %d", ret);
 		return ret;
 	}
 #endif
@@ -143,7 +143,7 @@ void WebSocketManager::handleMessage(command_connection_t connection, JsonObject
 void WebSocketManager::connected(WebSocketConnection& socket)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
-	debug_i("%s to %s", __FUNCTION__, cc->remoteName().c_str());
+	debug_i("Connected to %s", cc->remoteName().c_str());
 
 	/*
 	 * Only permit max. 1 socket per client to preserve resources.
@@ -164,7 +164,7 @@ void WebSocketManager::connected(WebSocketConnection& socket)
 void WebSocketManager::disconnected(WebSocketConnection& socket)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
-	debug_i("%s from %s", __FUNCTION__, cc->remoteName().c_str());
+	debug_i("Disconnected from %s", cc->remoteName().c_str());
 }
 
 /*
@@ -182,7 +182,7 @@ void WebSocketManager::messageReceived(WebSocketConnection& socket, const String
 
 	auto cc = WSCommandConnection::fromSocket(&socket);
 
-	debug_i("%s() from %s: %s", __FUNCTION__, cc->remoteName().c_str(), message.c_str());
+	debug_i("Message received from %s: %s", cc->remoteName().c_str(), message.c_str());
 
 	DynamicJsonBuffer jsonBuffer;
 	JsonObject& json = jsonBuffer.parseObject(message);
@@ -209,7 +209,7 @@ void WebSocketManager::binaryReceived(WebSocketConnection& socket, uint8_t* data
 		if (m_handlers[i]->handleData(cc, data, size))
 			return;
 
-	debug_w("%s(%u) - unhandled", __FUNCTION__, size);
+	debug_w("binaryReceived(%u) - unhandled", size);
 }
 
 WebsocketResource* WebSocketManager::createResource()

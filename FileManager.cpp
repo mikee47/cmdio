@@ -102,7 +102,7 @@ bool FileUpload::handleData(command_connection_t connection, uint8_t* data, size
 	if (m_connection != connection)
 		return false;
 
-	debug_i("%s(%u)", __FUNCTION__, size);
+	debug_i("FileUpload::handleData(%u)", size);
 
 	m_timer.stop();
 

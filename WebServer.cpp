@@ -64,11 +64,13 @@ static DEFINE_FSTR(ATTR_SOCKETS, "sockets")
  */
 int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
 {
+	PSTR_ARRAY(funcName, "WebServer::requestComplete");
+
 	String file = request.uri.relativePath();
 #if DEBUG_BUILD
 	IPAddress ip = connection.getRemoteIp();
 	uint16_t port = connection.getRemotePort();
-	debug_i("%s(%s[%u], '%s') from %s:%u", __FUNCTION__, request.methodStr().c_str(), request.method, file.c_str(), ip.toString().c_str(), port);
+	debug_i("%s(%s[%u], '%s') from %s:%u", funcName, request.methodStr().c_str(), request.method, file.c_str(), ip.toString().c_str(), port);
 	String s = request.uri.toString().c_str();
 	debug_hex(INFO, "URI", s.c_str(), s.length());
 #endif
@@ -82,7 +84,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 
 	// For errors construct and send error page
 	if (response.code >= 400) {
-		debug_i("requestComplete(): code = %d", response.code);
+		debug_i("%s(): code = %d", funcName, response.code);
 
 //		response.sendFile(FILE_ERROR_HTML(), false);
 

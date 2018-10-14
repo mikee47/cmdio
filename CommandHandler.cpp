@@ -39,7 +39,7 @@ WSCommandConnection::WSCommandConnection(HttpServerConnection& conn) :
  */
 void WSCommandConnection::send(const String& msg)
 {
-	debug_i("%s %u bytes: %s", __FUNCTION__, msg.length(), msg.c_str());
+	debug_i("WSCommandConnection::send(\"%s\"), %u bytes", msg.c_str(), msg.length());
 
 	if (active())
 		WebSocketConnection::sendString(msg);
@@ -54,7 +54,7 @@ void WSCommandConnection::send(JsonObject& json)
 
 void WSCommandConnection::broadcast(const String& msg)
 {
-	debug_i("%s(%s)", __FUNCTION__, msg.c_str());
+	debug_i("WSCommandConnection::broadcast(\"%s\")", msg.c_str());
 	WebSocketConnection::broadcast(msg.c_str(), msg.length());
 }
 

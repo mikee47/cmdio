@@ -63,7 +63,7 @@ void FirmwareUpdateSession::init(uint32_t imageSize, unsigned chunkSize)
 	}, this);
 	m_timer.startMs(FWUPDATE_TIMEOUT_MS);
 
-	debug_i("%s: upload %u bytes to ROM %u @ 0x%08X", __PRETTY_FUNCTION__, m_imageSize, m_slot, bootconf.roms[m_slot]);
+	debug_i("FirmwareUpdateSession::init(): upload %u bytes to ROM %u @ 0x%08X", m_imageSize, m_slot, bootconf.roms[m_slot]);
 }
 
 void FirmwareUpdateSession::notify(request_status_t status, ioerror_t err)
@@ -115,12 +115,14 @@ ioerror_t FirmwareUpdateSession::apply()
  */
 bool FirmwareUpdateSession::handleData(uint8_t* data, size_t size)
 {
+	PSTR_ARRAY(funcName, "FirmwareUpdateSession::handleData");
+
 	m_timer.stop();
 
 	// Header appears at start of data
 	if (m_bytesReceived == 0) {
 		if (size < sizeof(firmware_header_t)) {
-			debug_e("%s: Header packet too small", __FUNCTION__);
+			debug_e("%s: Header packet too small", funcName);
 			return false;
 		}
 
@@ -132,11 +134,11 @@ bool FirmwareUpdateSession::handleData(uint8_t* data, size_t size)
 		memcpy_P(&devkey, &g_deviceKey, sizeof(devkey));
 
 		if (!beginDecrypt(m_gcm, header, devkey)) {
-			debug_w("%s: Header authentication failed", __FUNCTION__);
+			debug_w("%s: Header authentication failed", funcName);
 			return false;
 		}
 
-		debug_i("%s: Header authenticated", __FUNCTION__);
+		debug_i("%s: Header authenticated", funcName);
 
 		if (m_imageSize != sizeof(firmware_header_t) + header.encrypted.imageSize) {
 			debug_w("%s: Firmware image size invalid");
@@ -153,7 +155,7 @@ bool FirmwareUpdateSession::handleData(uint8_t* data, size_t size)
 	m_bytesReceived += size;
 
 	if (m_bytesReceived > m_imageSize) {
-		debug_w("%s(): Extra bytes at end of payload", __FUNCTION__);
+		debug_w("%s(): Extra bytes at end of payload", funcName);
 		return false;
 	}
 
@@ -176,7 +178,7 @@ bool FirmwareUpdateSession::handleData(uint8_t* data, size_t size)
 			// Do a final authentication on the payload
 			if (m_tag != m_gcm.computeTag()) {
 				notify(status_error, ioe_bad_config);
-				debug_w("%s: Tag FAIL", __FUNCTION__);
+				debug_w("%s: Tag FAIL", funcName);
 				return false;
 			}
 
@@ -287,7 +289,7 @@ void FirmwareUpdateManager::handleMessage(command_connection_t connection, JsonO
 
 bool FirmwareUpdateManager::handleData(command_connection_t connection, uint8_t* data, size_t size)
 {
-//  debug_i("%s(%u)", __FUNCTION__, size);
+//  debug_i("handleData(%u)", size);
 	if (!checkSession(connection))
 		return false;
 
