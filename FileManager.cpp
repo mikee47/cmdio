@@ -49,11 +49,61 @@ extern const uint8_t __fwfiles_data[] PROGMEM;
 
 #define UPLOAD_TIMEOUT_MS 2000
 
+
+static bool IsValidUtf8(const char* str, unsigned length)
+{
+	if (str == nullptr)
+		return true;
+
+	unsigned i = 0;
+	while (i < length) {
+		char c = str[i++];
+		if ((c & 0x80) == 0)
+			continue;
+
+		if (i >= length) {
+			return false;  // incomplete multibyte char
+		}
+
+		if (c & 0x20) {
+			c = str[i++];
+			if ((c & 0xC0) != 0x80) {
+				return false;  // malformed trail byte or out of range char
+			}
+			if (i >= length) {
+				return false;  // incomplete multibyte char
+			}
+		}
+
+		c = str[i++];
+		if ((c & 0xC0) != 0x80) {
+			return false;  // malformed trail byte
+		}
+	}
+
+	return true;
+}
+
+
+// Check for invalid characters and replace them - can break browser operation otherwise
+static char* checkString(char* str, unsigned length)
+{
+	if (!IsValidUtf8(str, length)) {
+		debug_w("Invalid UTF8: %s", str);
+		for (unsigned i = 0; i < length; ++i) {
+			char& c = str[i];
+			if (c < 0x20 || c > 127)
+				c = '_';
+		}
+	}
+	return str;
+}
+
 static void getFileInfo(JsonObject& json, const FileStat& stat)
 {
 	String attrName = ATTR_NAME;
 	if (!json.containsKey(attrName))
-		json[attrName] = stat.name.length ? String(stat.name) : String::empty;
+		json[attrName] = stat.name.length ? String(checkString(stat.name.buffer, stat.name.length)) : String::empty;
 	json[ATTR_SIZE] = stat.size;
 	FileSystemInfo fsi;
 	stat.fs->getinfo(fsi);
@@ -215,7 +265,9 @@ static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
 			return f;
 
 	auto& f = files.createNestedObject();
-	f[attrName] = name;
+	String s = name;
+	checkString(s.begin(), s.length());
+	f[attrName] = s;
 	return f;
 }
 
@@ -266,11 +318,13 @@ static void deleteFiles(JsonObject& json)
 {
 	int res = FS_OK;
 	String dir = json[ATTR_DIR].asString();
+	if (dir)
+		dir += '/';
 	JsonArray& files = json[ATTR_FILES];
-	auto attrName = ATTR_NAME;
+	String attrName = ATTR_NAME;
 	for (unsigned i = 0; i < files.size(); ++i) {
 		JsonObject& file = files[i];
-		String path = dir + "/" + file[attrName].asString();
+		String path = dir + file[attrName].asString();
 		int err = fileDelete(path);
 		if (err < 0) {
 			setError(file, err, fileGetErrorString(err));

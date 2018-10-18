@@ -20,6 +20,7 @@
 #include "NetworkManager.h"
 #include "FileManager.h"
 #include "Platform/Station.h"
+#include "Data/HexString.h"
 
 
 // Global instance
@@ -80,7 +81,7 @@ static DEFINE_FSTR(ATTR_IPADDR, "IP Address")
 
 String macToStr(uint8_t hwaddr[6])
 {
-	return toHexString(hwaddr, 6, ':');
+	return makeHexString(hwaddr, 6, ':');
 }
 
 String authModeToStr(AUTH_MODE mode)
