@@ -54,7 +54,7 @@ public:
 
 	bool active()
 	{
-		return (this != nullptr) && WebSocketConnection::getActiveWebSockets().contains(this);
+		return getActiveWebSockets().contains(this);
 	}
 
 	void send(const String& msg);
