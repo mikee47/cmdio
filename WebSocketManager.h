@@ -24,38 +24,45 @@ class WebsocketManager
 public:
 	WebsocketResource* createResource();
 
-	void registerHandler(ICommandHandler& handler)
+	void registerHandler(WSCommandHandler& handler)
 	{
-		if (!m_handlers.contains(&handler))
-			m_handlers.add(&handler);
+		if(!handlers.contains(&handler))
+			handlers.add(&handler);
 	}
 
-	void unregisterHandler(ICommandHandler& handler)
+	void unregisterHandler(WSCommandHandler& handler)
 	{
-		m_handlers.removeElement(&handler);
+		handlers.removeElement(&handler);
 	}
 
-	void loginComplete(command_connection_t connection, JsonObject& json);
+	void loginComplete(WSCommandConnection* connection, JsonObject& json);
 
-	static command_connection_t findConnection(uint32_t cid);
-	static command_connection_t findConnection(const char* cidStr);
+	static WSCommandConnection* findConnection(uint32_t cid);
+	static WSCommandConnection* findConnection(const char* cidStr);
+
+	static void broadcast(const String& msg);
+	static void broadcast(JsonObject& json);
+
+	static unsigned count()
+	{
+		return WebsocketConnection::getActiveWebsockets().count();
+	}
 
 private:
-	// WebsocketResource callbacks
+	// WebSocketResource callbacks
 	static void connected(WebsocketConnection& socket);
 	static void disconnected(WebsocketConnection& socket);
 	void messageReceived(WebsocketConnection& socket, const String& message);
 	void binaryReceived(WebsocketConnection& socket, uint8_t* data, size_t size);
 
-	void handleAuthMessage(command_connection_t connection, JsonObject& json);
-	void handleMessage(command_connection_t connection, JsonObject& json);
+	void handleAuthMessage(WSCommandConnection* connection, JsonObject& json);
+	void handleMessage(WSCommandConnection* connection, JsonObject& json);
 
 private:
-	Vector<ICommandHandler*> m_handlers;
-	ICommandHandler* findHandler(const char* method);
+	Vector<WSCommandHandler*> handlers;
+	WSCommandHandler* findHandler(const char* method);
 };
 
 extern WebsocketManager socketManager;
 
 #endif // __WEBSOCKET_MANAGER_H
-

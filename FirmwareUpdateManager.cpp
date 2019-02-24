@@ -31,7 +31,8 @@
 #define MAX_CHUNK_SIZE  (128 * 1024)
 
 static DEFINE_FSTR(METHOD_FWUPDATE, "fwupdate")
-static DEFINE_FSTR(COMMAND_UPLOAD, "upload")
+//static DEFINE_FSTR(COMMAND_UPLOAD, "upload")
+DECLARE_FSTR(COMMAND_UPLOAD);
 static DEFINE_FSTR(ATTR_IMAGESIZE, "imagesize")
 static DEFINE_FSTR(ATTR_CHUNKSIZE, "chunksize")
 static DEFINE_FSTR(COMMAND_APPLY, "apply")
@@ -201,7 +202,7 @@ bool FirmwareUpdateSession::handleData(uint8_t* data, size_t size)
  * This allows an upload session to be locked to the session which started it
  * and prevents interruption (accidental or otherwise) from a different connection.
  */
-bool FirmwareUpdateManager::checkSession(command_connection_t connection)
+bool FirmwareUpdateManager::checkSession(WSCommandConnection* connection)
 {
 	// Active session ?
 	if (m_session == nullptr) {
@@ -227,7 +228,7 @@ void FirmwareUpdateManager::deleteSession()
 	}
 }
 
-ioerror_t FirmwareUpdateManager::startUpload(command_connection_t connection, uint32_t imageSize, unsigned chunkSize)
+ioerror_t FirmwareUpdateManager::startUpload(WSCommandConnection* connection, uint32_t imageSize, unsigned chunkSize)
 {
 	deleteSession();
 
@@ -256,7 +257,7 @@ String FirmwareUpdateManager::getMethod() const
 	return METHOD_FWUPDATE;
 }
 
-void FirmwareUpdateManager::handleMessage(command_connection_t connection, JsonObject& json)
+void FirmwareUpdateManager::handleMessage(WSCommandConnection* connection, JsonObject& json)
 {
 	const char* command = json[ATTR_COMMAND];
 
@@ -287,7 +288,7 @@ void FirmwareUpdateManager::handleMessage(command_connection_t connection, JsonO
 		setSuccess(json);
 }
 
-bool FirmwareUpdateManager::handleData(command_connection_t connection, uint8_t* data, size_t size)
+bool FirmwareUpdateManager::handleData(WSCommandConnection* connection, uint8_t* data, size_t size)
 {
 //  debug_i("handleData(%u)", size);
 	if (!checkSession(connection))

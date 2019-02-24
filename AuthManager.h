@@ -13,9 +13,9 @@
 
 #include "CommandHandler.h"
 
-typedef Delegate<void(command_connection_t connection, JsonObject& json)> login_callback_t;
+typedef Delegate<void(WSCommandConnection* connection, JsonObject& json)> login_callback_t;
 
-class AuthManager: public ICommandHandler
+class AuthManager: public WSCommandHandler
 {
 public:
 
@@ -34,10 +34,10 @@ public:
 	}
 
 	static UserRole authenticateUser(const char* username, const char* password);
-	void handleMessage(command_connection_t connection, JsonObject& json);
+	void handleMessage(WSCommandConnection* connection, JsonObject& json);
 
 private:
-	void login(command_connection_t connection, JsonObject& json);
+	void login(WSCommandConnection* connection, JsonObject& json);
 
 private:
 	login_callback_t m_onLoginComplete;

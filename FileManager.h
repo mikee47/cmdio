@@ -20,8 +20,8 @@ class FileManager;
 /** @brief File upload errors
  *  @note mapped to user-defined filing system error range
  */
-#define ERROR_TIMEOUT   (FSERR_USER - 1)	///< Transfer timed out
-#define ERROR_TOO_BIG	(FSERR_USER - 2)	///< Received more file data than header indicated
+#define ERROR_TIMEOUT (FSERR_USER - 1) ///< Transfer timed out
+#define ERROR_TOO_BIG (FSERR_USER - 2) ///< Received more file data than header indicated
 
 DECLARE_FSTR(ATTR_ACCESS)
 
@@ -29,10 +29,7 @@ DECLARE_FSTR(ATTR_ACCESS)
 class FileUpload
 {
 public:
-
-	FileUpload(FileManager& manager, command_connection_t connection) :
-		m_manager(manager),
-			m_connection(connection)
+	FileUpload(FileManager& manager, WSCommandConnection* connection) : manager(manager), connection(connection)
 	{
 	}
 
@@ -45,33 +42,31 @@ public:
 
 	const String& filename() const
 	{
-		return m_filename;
+		return fileName;
 	}
 
-	int error() const
+	int getError() const
 	{
-		return m_error;
+		return error;
 	}
 
-	bool handleData(command_connection_t connection, uint8_t* data, size_t size);
+	bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size);
 
 private:
-
 	void close();
 	void endUpload();
 
 private:
-	FileManager& m_manager;
-	String m_filename = nullptr;
-	file_t m_file = -1;
-	uint32_t m_size = 0;
-	command_connection_t m_connection = nullptr;
-	uint32_t m_written = 0;
+	FileManager& manager;
+	String fileName = nullptr;
+	file_t fileHandle = -1;
+	uint32_t fileSize = 0;
+	WSCommandConnection* connection = nullptr;
+	uint32_t bytesWritten = 0;
 	// SPIFFS error
-	int m_error = ERROR_TIMEOUT;
+	int error = ERROR_TIMEOUT;
 	// Handles timeout condition
-	SimpleTimer m_timer;
-
+	SimpleTimer timer;
 };
 
 /** @brief  Callback function for file upload completion
@@ -81,44 +76,43 @@ private:
  */
 typedef std::function<void(const FileUpload& upload)> file_upload_callback_t;
 
-class FileManager: public ICommandHandler
+class FileManager : public WSCommandHandler
 {
 	friend FileUpload;
 
 public:
 	~FileManager();
 
-	bool init();
+	bool init(const void* fwfsImageData);
 
 	/* CCommandHandler */
 	String getMethod() const;
 
 	UserRole minAccess() const
 	{
-		return UserRole::Admin;
+		return UserRole::User;
 	}
 
 	void onUpload(file_upload_callback_t callback)
 	{
-		m_callback = callback;
+		this->callback = callback;
 	}
 
-	void handleMessage(command_connection_t connection, JsonObject& json);
+	void handleMessage(WSCommandConnection* connection, JsonObject& json);
 
-	bool handleData(command_connection_t connection, uint8_t* data, size_t size)
+	bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size)
 	{
-		return m_upload ? m_upload->handleData(connection, data, size) : false;
+		return upload ? upload->handleData(connection, data, size) : false;
 	}
 
 private:
-	ioerror_t getFile(command_connection_t connection, JsonObject& json);
-	ioerror_t startUpload(command_connection_t connection, JsonObject& json);
+	ioerror_t getFile(WSCommandConnection* connection, JsonObject& json);
+	ioerror_t startUpload(WSCommandConnection* connection, JsonObject& json);
 	void endUpload();
 
 private:
-	FileUpload* m_upload;
-	file_upload_callback_t m_callback;
-
+	FileUpload* upload;
+	file_upload_callback_t callback;
 };
 
 #endif // __FILE_MANAGER_H

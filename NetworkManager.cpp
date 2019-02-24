@@ -295,7 +295,7 @@ bool NetworkManager::accessPointMode(bool enable)
 	return ret;
 }
 
-void NetworkManager::configure(command_connection_t connection, JsonObject& json)
+void NetworkManager::configure(WSCommandConnection* connection, JsonObject& json)
 {
 	// If connection's been dropped we can continue
 	if (m_configConnection)
@@ -454,7 +454,7 @@ void NetworkManager::scanComplete(void* arg, STATUS status)
 	m_scanConnection = nullptr;
 }
 
-void NetworkManager::scan(command_connection_t connection, JsonObject& json)
+void NetworkManager::scan(WSCommandConnection* connection, JsonObject& json)
 {
 	// Scan in progress ?
 	if (m_scanConnection) {
@@ -509,7 +509,7 @@ String NetworkManager::getMethod() const
 	return METHOD_NETWORK;
 }
 
-void NetworkManager::handleMessage(command_connection_t connection, JsonObject& json)
+void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject& json)
 {
 	const char* command = json[ATTR_COMMAND];
 

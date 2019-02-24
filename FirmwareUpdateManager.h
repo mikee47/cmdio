@@ -32,7 +32,7 @@ class FirmwareUpdateManager;
 class FirmwareUpdateSession
 {
 public:
-	FirmwareUpdateSession(FirmwareUpdateManager& manager, command_connection_t connection) :
+	FirmwareUpdateSession(FirmwareUpdateManager& manager, WSCommandConnection* connection) :
 		m_manager(manager),
 			m_connection(connection)
 	{
@@ -42,14 +42,14 @@ public:
 	bool handleData(uint8_t* data, size_t size);
 	ioerror_t apply();
 
-	command_connection_t connection() const
+	WSCommandConnection* connection() const
 	{
 		return m_connection;
 	}
 
 private:
 	FirmwareUpdateManager& m_manager;
-	command_connection_t m_connection = nullptr;
+	WSCommandConnection* m_connection = nullptr;
 	// Size of firmware image
 	uint32_t m_imageSize = 0;
 	// Data transferred in chunks
@@ -72,7 +72,7 @@ private:
 };
 
 
-class FirmwareUpdateManager: public ICommandHandler
+class FirmwareUpdateManager: public WSCommandHandler
 {
 	friend class FirmwareUpdateSession;
 
@@ -83,19 +83,19 @@ public:
 	/*
 	 * Update initialisation, etc. are handled via standare JSON messages.
 	 */
-	void handleMessage(command_connection_t connection, JsonObject& json);
+	void handleMessage(WSCommandConnection* connection, JsonObject& json);
 
 	/*
 	 * Encrypted firmware is uploaded via binary channel.
 	 */
-	bool handleData(command_connection_t connection, uint8_t* data, size_t size);
+	bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size);
 
 private:
 	FirmwareUpdateSession* m_session;
 
-	bool checkSession(command_connection_t connection);
+	bool checkSession(WSCommandConnection* connection);
 	void deleteSession();
-	ioerror_t startUpload(command_connection_t connection, uint32_t imageSize, unsigned chunkSize);
+	ioerror_t startUpload(WSCommandConnection* connection, uint32_t imageSize, unsigned chunkSize);
 	void uploadTimeout();
 };
 

@@ -10,18 +10,19 @@
 
 #include "WebServer.h"
 
+#include "WebsocketManager.h"
 #include "FileManager.h"
 #include "NetworkManager.h"
-#include "WebsocketManager.h"
+#include "../Services/WebHelpers/escape.h"
 
-DEFINE_FSTR(FILE_INDEX_HTML, "index.html")
-static DEFINE_FSTR(FILE_CONFIG_HTML, "config.html")
-static DEFINE_FSTR(FILE_ERROR_HTML, "error.html")
+DEFINE_FSTR(FILE_INDEX_HTML, "index.html");
+static DEFINE_FSTR(FILE_CONFIG_HTML, "config.html");
+static DEFINE_FSTR(FILE_ERROR_HTML, "error.html");
 
-static DEFINE_FSTR(METHOD_WEB, "web")
-static DEFINE_FSTR(ATTR_PATH, "path")
-static DEFINE_FSTR(ATTR_CLIENTS, "clients")
-static DEFINE_FSTR(ATTR_SOCKETS, "sockets")
+static DEFINE_FSTR(METHOD_WEB, "web");
+static DEFINE_FSTR(ATTR_PATH, "path");
+static DEFINE_FSTR(ATTR_CLIENTS, "clients");
+static DEFINE_FSTR(ATTR_SOCKETS, "sockets");
 
 /*
  * All web file requests come here.
@@ -66,29 +67,34 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 {
 	PSTR_ARRAY(funcName, "WebServer::requestComplete");
 
-	String file = request.uri.relativePath();
+	//	String file = request.uri.relativePath();
+	String file = uri_unescape(request.uri.Path);
+	if(file[0] == '/') {
+		file.remove(0, 1);
+	}
 #if DEBUG_BUILD
 	IPAddress ip = connection.getRemoteIp();
 	uint16_t port = connection.getRemotePort();
-	debug_i("%s(%s[%u], '%s') from %s:%u", funcName, request.methodStr().c_str(), request.method, file.c_str(), ip.toString().c_str(), port);
+	debug_i("%s(%s[%u], '%s') from %s:%u", funcName, request.methodStr().c_str(), request.method, file.c_str(),
+			ip.toString().c_str(), port);
 	String s = request.uri.toString().c_str();
 	debug_hex(INFO, "URI", s.c_str(), s.length());
 #endif
 
-	if (file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file)))
+	if(file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file)))
 		file = FILE_INDEX_HTML;
 
-//  WifiAccessPoint.isEnabled() ? FILE_CONFIG_HTML() : FILE_INDEX_HTML();
+	//  WifiAccessPoint.isEnabled() ? FILE_CONFIG_HTML() : FILE_INDEX_HTML();
 
 	sendFile(file, request.getQueryParameter(ATTR_CID), response);
 
 	// For errors construct and send error page
-	if (response.code >= 400) {
+	if(response.code >= 400) {
 		debug_i("%s(): code = %d", funcName, response.code);
 
-//		response.sendFile(FILE_ERROR_HTML(), false);
+		//		response.sendFile(FILE_ERROR_HTML(), false);
 
-/*
+		/*
 20/8/2018 - something screwy going on here, still trying to get to the bottom of it
 fails in TemplateStream::readMemoryBlock on first read after "continue to plain text" (WAIT mode)
 
@@ -100,7 +106,7 @@ destroyed early?
 		http_status status = static_cast<http_status>(response.code);
 
 		auto tmpl = new TemplateFileStream(FILE_ERROR_HTML);
-		auto &vars = tmpl->variables();
+		auto& vars = tmpl->variables();
 		vars[ATTR_PATH] = request.uri.Path;
 		vars[ATTR_CODE] = status;
 		vars[ATTR_TEXT] = httpGetStatusText(status);
@@ -113,26 +119,30 @@ destroyed early?
 void WebServer::sendFile(const String& filename, const String& cid, HttpResponse& response)
 {
 	auto cc = socketManager.findConnection(cid.c_str());
-	UserRole access = cc ? cc->access() : UserRole::None;
+	UserRole access = cc ? cc->getAccess() : UserRole::None;
 
 	FileStat stat;
-	if (fileStats(filename, &stat) < 0) {
+	if(fileStats(filename, &stat) < 0) {
 		response.code = HTTP_STATUS_NOT_FOUND;
 		return;
 	}
 
 	// System files start with '.' and are always protected to admin level
-	if (filename[0] == '.') {
+	if(filename[0] == '.') {
 		stat.acl.readAccess = UserRole::Admin;
 		stat.acl.writeAccess = UserRole::Admin;
 	}
 
-	if (access < stat.acl.readAccess)
+	if(access < stat.acl.readAccess) {
+		char role1[10], role2[10];
+		userRoleToStr(stat.acl.readAccess, role1, sizeof(role1));
+		userRoleToStr(access, role2, sizeof(role2));
+		debug_w("File \"%s\" requires '%s' access, connection is '%s'", filename.c_str(), role1, role2);
 		response.code = HTTP_STATUS_FORBIDDEN;
-	else {
+	} else {
 		stat.name = NameBuffer((char*)filename.c_str(), filename.length(), filename.length());
 		response.sendFile(stat);
-/*
+		/*
 		auto stream = new MemoryDataStream;
 		stream->setSize(stat.size);
 		auto file = fileOpen(stat);
@@ -155,21 +165,21 @@ void WebServer::sendFile(const String& filename, const String& cid, HttpResponse
 
 bool WebServer::start()
 {
-	if (m_server)
-		m_server->close();
-	else {
+	if(server) {
+		server->close();
+	} else {
 		HttpServerSettings settings;
 		settings.maxActiveConnections = 10;
 		settings.keepAliveSeconds = 5;
 		settings.minHeapSize = -1;
 		settings.useDefaultBodyParsers = true;
-		m_server = new HttpServer(settings);
-		m_server->addPath(F("/ws"), socketManager.createResource());
-		m_server->addPath(F("*"), HttpResourceDelegate(&WebServer::requestComplete, this));
+		server = new HttpServer(settings);
+		server->addPath(F("/ws"), socketManager.createResource());
+		server->addPath(F("*"), HttpResourceDelegate(&WebServer::requestComplete, this));
 	}
 
 	uint16_t port = networkManager.webServerPort();
-	if (!m_server->listen(port)) {
+	if(!server->listen(port)) {
 		debug_w("Web server listen failed");
 		return false;
 	}
@@ -180,10 +190,10 @@ bool WebServer::start()
 
 void WebServer::stop()
 {
-	if (m_server) {
-		m_server->shutdown();
+	if(server) {
+		server->shutdown();
 		// Server will delete itself when last client connection is closed.
-		m_server = nullptr;
+		server = nullptr;
 	}
 }
 
@@ -192,25 +202,26 @@ String WebServer::getMethod() const
 	return METHOD_WEB;
 }
 
-void WebServer::handleMessage(command_connection_t connection, JsonObject& json)
+void WebServer::handleMessage(WSCommandConnection* connection, JsonObject& json)
 {
 	const char* command = json[ATTR_COMMAND];
 
-	if (COMMAND_INFO == command) {
-		json[ATTR_SOCKETS] = WebsocketConnection::getActiveWebsockets().count();
+	if(COMMAND_INFO == command) {
+		json[ATTR_SOCKETS] = socketManager.count();
 
-		if (m_server) {
+		if(server) {
 			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS);
+			/*
 			auto& connections = m_server->getConnections();
 			for (unsigned i = 0; i < connections.count(); i++) {
 				auto conn = connections[i];
 				conns.add(conn->getRemoteIp().toString());
 			}
+*/
 		}
 
 		return;
 	}
 
-	ICommandHandler::handleMessage(connection, json);
+	WSCommandHandler::handleMessage(connection, json);
 }
-

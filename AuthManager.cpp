@@ -63,7 +63,7 @@ String AuthManager::getMethod() const
 }
 
 // Don't overwrite access unless authenticated
-void AuthManager::login(command_connection_t connection, JsonObject& json)
+void AuthManager::login(WSCommandConnection* connection, JsonObject& json)
 {
 	UserRole access = UserRole::None;
 
@@ -101,7 +101,7 @@ void AuthManager::login(command_connection_t connection, JsonObject& json)
 	}
 }
 
-void AuthManager::handleMessage(command_connection_t connection, JsonObject& json)
+void AuthManager::handleMessage(WSCommandConnection* connection, JsonObject& json)
 {
 	const char* command = json[ATTR_COMMAND];
 

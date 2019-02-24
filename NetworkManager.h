@@ -111,7 +111,7 @@ private:
 	bss_info* m_info = nullptr;
 };
 
-class NetworkManager: public ICommandHandler
+class NetworkManager: public WSCommandHandler
 {
 public:
 	NetworkManager();
@@ -120,9 +120,9 @@ public:
 
 	void onStatusChange(network_callback_t callback);
 
-	void scan(command_connection_t connection, JsonObject& json);
+	void scan(WSCommandConnection* connection, JsonObject& json);
 
-	void configure(command_connection_t connection, JsonObject& json);
+	void configure(WSCommandConnection* connection, JsonObject& json);
 
 	bool accessPointMode(bool enable);
 
@@ -140,7 +140,7 @@ public:
 		return UserRole::User;
 	}
 
-	void handleMessage(command_connection_t connection, JsonObject& json);
+	void handleMessage(WSCommandConnection* connection, JsonObject& json);
 
 	// ITimeManager
 	time_t decodeTime(String s);
@@ -173,11 +173,11 @@ private:
 	//
 	uint16_t m_serverPort = 80;
 	// The client connection being used to reconfigure network
-	command_connection_t m_configConnection = nullptr;
+	WSCommandConnection* m_configConnection = nullptr;
 	//
 	network_callback_t m_onStatusChange = nullptr;
 	// Network scan
-	command_connection_t m_scanConnection = nullptr;
+	WSCommandConnection* m_scanConnection = nullptr;
 	// For keeping system clock accurate
 	NtpClient m_ntpClient;
 
