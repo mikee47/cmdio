@@ -40,21 +40,21 @@ DECLARE_FSTR(DONT_RESPOND)
  * We override WebsocketResource to create instances of this class, so
  * we can customise functionality, add member data, etc.
  */
-class WSCommandConnection: public WebSocketConnection, public ICommandConnection
+class WSCommandConnection: public WebsocketConnection, public ICommandConnection
 {
 public:
-	static WSCommandConnection* fromSocket(WebSocketConnection* socket)
+	static WSCommandConnection* fromSocket(WebsocketConnection* socket)
 	{
 		return reinterpret_cast<WSCommandConnection*>(socket);
 	}
 
 	WSCommandConnection(HttpServerConnection& conn);
 
-	using WebSocketConnection::send;
+	using WebsocketConnection::send;
 
 	bool active()
 	{
-		return getActiveWebSockets().contains(this);
+		return getActiveWebsockets().contains(this);
 	}
 
 	void send(const String& msg);

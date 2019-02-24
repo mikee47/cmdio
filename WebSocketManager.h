@@ -1,5 +1,5 @@
 /*
- * WebSocketManager.h
+ * WebsocketManager.h
  *
  *  Created on: 5 Jun 2018
  *      Author: mikee47
@@ -19,7 +19,7 @@
 
 DECLARE_FSTR(ATTR_CID)
 
-class WebSocketManager
+class WebsocketManager
 {
 public:
 	WebsocketResource* createResource();
@@ -41,11 +41,11 @@ public:
 	static command_connection_t findConnection(const char* cidStr);
 
 private:
-	// WebSocketResource callbacks
-	static void connected(WebSocketConnection& socket);
-	static void disconnected(WebSocketConnection& socket);
-	void messageReceived(WebSocketConnection& socket, const String& message);
-	void binaryReceived(WebSocketConnection& socket, uint8_t* data, size_t size);
+	// WebsocketResource callbacks
+	static void connected(WebsocketConnection& socket);
+	static void disconnected(WebsocketConnection& socket);
+	void messageReceived(WebsocketConnection& socket, const String& message);
+	void binaryReceived(WebsocketConnection& socket, uint8_t* data, size_t size);
 
 	void handleAuthMessage(command_connection_t connection, JsonObject& json);
 	void handleMessage(command_connection_t connection, JsonObject& json);
@@ -55,7 +55,7 @@ private:
 	ICommandHandler* findHandler(const char* method);
 };
 
-extern WebSocketManager socketManager;
+extern WebsocketManager socketManager;
 
 #endif // __WEBSOCKET_MANAGER_H
 

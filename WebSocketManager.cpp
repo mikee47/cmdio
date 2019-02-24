@@ -1,12 +1,12 @@
 /*
- * WebSocketManager.cpp
+ * WebsocketManager.cpp
  *
  *  Created on: 5 Jun 2018
  *      Author: mikee47
  */
 
 #include "status.h"
-#include "WebSocketManager.h"
+#include "WebsocketManager.h"
 
 #if DEBUG_BUILD
 //#define DEBUG_WEBSOCKETS
@@ -15,26 +15,26 @@
 // Messages
 DEFINE_FSTR(ATTR_METHODS, "methods")
 
-WebSocketManager socketManager;
+WebsocketManager socketManager;
 
 // Roughly 3.5KB RAM per websocket...
 #define MAX_WEBSOCKET_COUNT 5
 
-class CCWebSocketResource: public WebsocketResource
+class CCWebsocketResource: public WebsocketResource
 {
 protected:
 	// virtual
-	WebSocketConnection* createConnection(HttpServerConnection& connection)
+	WebsocketConnection* createConnection(HttpServerConnection& connection)
 	{
 		return new WSCommandConnection(connection);
 	}
 
 #ifdef DEBUG_WEBSOCKETS
 public:
-	CCWebSocketResource() : WebsocketResource()
+	CCWebsocketResource() : WebsocketResource()
 	{
-		onHeadersComplete = HttpResourceDelegate(&CCWebSocketResource::checkHeaders, this);
-		onUpgrade = HttpServerConnectionUpgradeDelegate(&CCWebSocketResource::processData, this);
+		onHeadersComplete = HttpResourceDelegate(&CCWebsocketResource::checkHeaders, this);
+		onUpgrade = HttpServerConnectionUpgradeDelegate(&CCWebsocketResource::processData, this);
 	}
 
 	int checkHeaders(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
@@ -68,9 +68,9 @@ public:
  */
 DEFINE_FSTR(ATTR_CID, "cid")
 
-command_connection_t WebSocketManager::findConnection(uint32_t cid)
+command_connection_t WebsocketManager::findConnection(uint32_t cid)
 {
-	WebSocketsList& list = WSCommandConnection::getActiveWebSockets();
+	WebsocketsList& list = WSCommandConnection::getActiveWebsockets();
 	for (unsigned i = 0; i < list.count(); ++i) {
 		auto cc = WSCommandConnection::fromSocket(list[i]);
 		if (cc->cid() == cid)
@@ -79,7 +79,7 @@ command_connection_t WebSocketManager::findConnection(uint32_t cid)
 	return nullptr;
 }
 
-command_connection_t WebSocketManager::findConnection(const char* cidStr)
+command_connection_t WebsocketManager::findConnection(const char* cidStr)
 {
 	return cidStr ? findConnection(strtoul(cidStr, nullptr, 16)) : nullptr;
 }
@@ -87,7 +87,7 @@ command_connection_t WebSocketManager::findConnection(const char* cidStr)
 /*
  * After a successful login, the authenticator calls this method.
  */
-void WebSocketManager::loginComplete(command_connection_t connection, JsonObject& json)
+void WebsocketManager::loginComplete(command_connection_t connection, JsonObject& json)
 {
 	/*
 	 * If the client provided a CID it will identify an previous socket instance.
@@ -111,7 +111,7 @@ void WebSocketManager::loginComplete(command_connection_t connection, JsonObject
 	}
 }
 
-ICommandHandler* WebSocketManager::findHandler(const char* method)
+ICommandHandler* WebsocketManager::findHandler(const char* method)
 {
 	for (unsigned i = 0; i < m_handlers.count(); ++i) {
 		ICommandHandler* handler = m_handlers[i];
@@ -122,7 +122,7 @@ ICommandHandler* WebSocketManager::findHandler(const char* method)
 	return nullptr;
 }
 
-void WebSocketManager::handleMessage(command_connection_t connection, JsonObject& json)
+void WebsocketManager::handleMessage(command_connection_t connection, JsonObject& json)
 {
 	const char* method = json[ATTR_METHOD];
 
@@ -140,7 +140,7 @@ void WebSocketManager::handleMessage(command_connection_t connection, JsonObject
 		connection->send(json);
 }
 
-void WebSocketManager::connected(WebSocketConnection& socket)
+void WebsocketManager::connected(WebsocketConnection& socket)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
 	debug_i("Connected to %s", cc->remoteName().c_str());
@@ -156,12 +156,12 @@ void WebSocketManager::connected(WebSocketConnection& socket)
 	 * TODO: If the socket isn't authenticated within, say, 5 seconds,
 	 * then close it. Can we do that using TCP timeouts?
 	 */
-	WebSocketsList& list = socket.getActiveWebSockets();
+	WebsocketsList& list = socket.getActiveWebsockets();
 	while (list.count() >= MAX_WEBSOCKET_COUNT)
 		list[0]->close();
 }
 
-void WebSocketManager::disconnected(WebSocketConnection& socket)
+void WebsocketManager::disconnected(WebsocketConnection& socket)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
 	debug_i("Disconnected from %s", cc->remoteName().c_str());
@@ -170,7 +170,7 @@ void WebSocketManager::disconnected(WebSocketConnection& socket)
 /*
  * Text messages are used for I/O control, status reporting and system methods.
  */
-void WebSocketManager::messageReceived(WebSocketConnection& socket, const String& message)
+void WebsocketManager::messageReceived(WebsocketConnection& socket, const String& message)
 {
 	const char* MSG_PING = "?";
 	const char* MSG_PONG = "#";
@@ -197,11 +197,11 @@ void WebSocketManager::messageReceived(WebSocketConnection& socket, const String
 /*
  * Binary messages are used for OTA firmware updating.
  *
- * Client messages are split into frames by websocket protocol. The WebSocketConnection
+ * Client messages are split into frames by websocket protocol. The WebsocketConnection
  * class does not aggregate frames so we get them individually and in sequence (by TCP).
  *
  */
-void WebSocketManager::binaryReceived(WebSocketConnection& socket, uint8_t* data, size_t size)
+void WebsocketManager::binaryReceived(WebsocketConnection& socket, uint8_t* data, size_t size)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
 
@@ -212,14 +212,14 @@ void WebSocketManager::binaryReceived(WebSocketConnection& socket, uint8_t* data
 	debug_w("binaryReceived(%u) - unhandled", size);
 }
 
-WebsocketResource* WebSocketManager::createResource()
+WebsocketResource* WebsocketManager::createResource()
 {
 	// Web Sockets configuration
-	auto wsResource = new CCWebSocketResource();
+	auto wsResource = new CCWebsocketResource();
 	wsResource->setConnectionHandler(connected);
 	wsResource->setDisconnectionHandler(disconnected);
-	wsResource->setMessageHandler(WebSocketMessageDelegate(&WebSocketManager::messageReceived, this));
-	wsResource->setBinaryHandler(WebSocketBinaryDelegate(&WebSocketManager::binaryReceived, this));
+	wsResource->setMessageHandler(WebsocketMessageDelegate(&WebsocketManager::messageReceived, this));
+	wsResource->setBinaryHandler(WebsocketBinaryDelegate(&WebsocketManager::binaryReceived, this));
 	return wsResource;
 }
 

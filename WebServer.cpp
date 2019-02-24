@@ -12,7 +12,7 @@
 
 #include "FileManager.h"
 #include "NetworkManager.h"
-#include "WebSocketManager.h"
+#include "WebsocketManager.h"
 
 DEFINE_FSTR(FILE_INDEX_HTML, "index.html")
 static DEFINE_FSTR(FILE_CONFIG_HTML, "config.html")
@@ -197,7 +197,7 @@ void WebServer::handleMessage(command_connection_t connection, JsonObject& json)
 	const char* command = json[ATTR_COMMAND];
 
 	if (COMMAND_INFO == command) {
-		json[ATTR_SOCKETS] = WebSocketConnection::getActiveWebSockets().count();
+		json[ATTR_SOCKETS] = WebsocketConnection::getActiveWebsockets().count();
 
 		if (m_server) {
 			JsonArray& conns = json.createNestedArray(ATTR_CLIENTS);

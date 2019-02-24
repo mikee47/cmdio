@@ -6,9 +6,9 @@
  */
 
 #include <status.h>
-#include "Services/IFS/HybridFileSystem.h"
-#include "Services/IFS/IFSFlashMedia.h"
-#include "Services/IFS/FWObjectStore.h"
+#include "IFS/HybridFileSystem.h"
+#include "IFS/IFSFlashMedia.h"
+#include "IFS/FWObjectStore.h"
 #include "../Services/SpifFS/spiffs_sming.h"
 #include "FileManager.h"
 
@@ -283,7 +283,7 @@ static JsonObject& findOrCreateFile(JsonArray& files, const String& name)
  * 3. Set json[DONT_RESPOND()] = true
  * 4. Call connection->send(stream)
  *
- * OK, so there's a bit of a problem with all this: WebSocketConnection
+ * OK, so there's a bit of a problem with all this: WebsocketConnection
  * buffers everything anyway and doesn't support streams.
  *
  * Need to take a proper look at using HTTP (e.g. REST) as a command

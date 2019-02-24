@@ -25,14 +25,14 @@ static uint32_t createCID(void* instance)
 }
 
 WSCommandConnection::WSCommandConnection(HttpServerConnection& conn) :
-	WebSocketConnection(conn)
+	WebsocketConnection(conn)
 {
 	conn.setTimeOut(WS_INITIAL_TIMEOUT);
 	m_cid = createCID(this);
 }
 
 /*
- * Send message via WebSocket, safely
+ * Send message via Websocket, safely
  *
  * @param socket Specify nullptr to broadcast.
  * @param msg Message to send
@@ -41,8 +41,18 @@ void WSCommandConnection::send(const String& msg)
 {
 	debug_i("WSCommandConnection::send(\"%s\"), %u bytes", msg.c_str(), msg.length());
 
+/*
+	debug_i("WSCommandConnection::send(%u)", msg.length());
+	debug_hex(INFO, "MSG", msg.c_str(), msg.length(), 0);
+	for (unsigned i = 0; i < msg.length(); ++i) {
+		char c = msg[i];
+		if (c < 0x20 || c > 127)
+			debug_i("Bad char @ %u", i);
+	}
+*/
+
 	if (active())
-		WebSocketConnection::sendString(msg);
+		WebsocketConnection::sendString(msg);
 }
 
 void WSCommandConnection::send(JsonObject& json)
@@ -55,7 +65,7 @@ void WSCommandConnection::send(JsonObject& json)
 void WSCommandConnection::broadcast(const String& msg)
 {
 	debug_i("WSCommandConnection::broadcast(\"%s\")", msg.c_str());
-	WebSocketConnection::broadcast(msg.c_str(), msg.length());
+	WebsocketConnection::broadcast(msg.c_str(), msg.length());
 }
 
 void WSCommandConnection::broadcast(JsonObject& json)
