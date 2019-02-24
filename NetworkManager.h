@@ -10,7 +10,7 @@
 
 #include "CommandHandler.h"
 #include "Network/DNSServer.h"
-#include "Network/NTPClient.h"
+#include "Network/NtpClient.h"
 #include "Platform/AccessPoint.h"
 #include "Platform/Station.h"
 #include "WString.h"
@@ -97,12 +97,14 @@ public:
 
 	bool simplePair()
 	{
-		return m_info->simple_pair != 0;
+		// SDK V1.5 does not have simple_pair member
+		//		return m_info->simple_pair != 0;
+		return false;
 	}
 
 	bool next()
 	{
-		if (m_info)
+		if(m_info)
 			m_info = m_info->next.stqe_next;
 		return m_info != nullptr;
 	}
@@ -111,14 +113,17 @@ private:
 	bss_info* m_info = nullptr;
 };
 
-class NetworkManager: public WSCommandHandler
+class NetworkManager : public WSCommandHandler
 {
 public:
 	NetworkManager();
 
 	void begin();
 
-	void onStatusChange(network_callback_t callback);
+	void onStatusChange(network_callback_t callback)
+	{
+		statusChangeCallback = callback;
+	}
 
 	void scan(WSCommandConnection* connection, JsonObject& json);
 
@@ -128,7 +133,7 @@ public:
 
 	uint16_t webServerPort() const
 	{
-		return WifiAccessPoint.isEnabled() ? 80 : m_serverPort;
+		return WifiAccessPoint.isEnabled() ? 80 : serverPort;
 	}
 
 	/* CCommandHandler */
@@ -145,9 +150,7 @@ public:
 	// ITimeManager
 	time_t decodeTime(String s);
 
-
 private:
-
 	void startMDNS();
 	void ntpInit();
 
@@ -161,26 +164,26 @@ private:
 
 	void statusChanged(network_change_t nwc)
 	{
-		if (m_onStatusChange)
-			m_onStatusChange(nwc);
+		if(statusChangeCallback) {
+			statusChangeCallback(nwc);
+		}
 	}
 
 private:
 	// Only need this in AP mode so create it dynamically
-	DNSServer* m_dnsServer = nullptr;
+	DNSServer* dnsServer = nullptr;
 	// Persistent data for MDNS - libraries don't reliably keep copies
-	String m_hostname;
+	String hostName;
 	//
-	uint16_t m_serverPort = 80;
+	uint16_t serverPort = 80;
 	// The client connection being used to reconfigure network
-	WSCommandConnection* m_configConnection = nullptr;
+	WSCommandConnection* configConnection = nullptr;
 	//
-	network_callback_t m_onStatusChange = nullptr;
+	network_callback_t statusChangeCallback = nullptr;
 	// Network scan
-	WSCommandConnection* m_scanConnection = nullptr;
+	WSCommandConnection* scanConnection = nullptr;
 	// For keeping system clock accurate
-	NtpClient m_ntpClient;
-
+	NtpClient ntpClient;
 };
 
 extern NetworkManager networkManager;

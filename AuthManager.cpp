@@ -16,13 +16,13 @@
 // Global instance
 AuthManager authManager;
 
-static DEFINE_FSTR(METHOD_AUTH, "auth")
+static DEFINE_FSTR(METHOD_AUTH, "auth");
 
 // Login
-static DEFINE_FSTR(COMMAND_LOGIN, "login")
-static DEFINE_FSTR(ATTR_USERS, "users")
+static DEFINE_FSTR(COMMAND_LOGIN, "login");
+static DEFINE_FSTR(ATTR_USERS, "users");
 
-static DEFINE_FSTR(FILE_AUTH, ".auth.json")
+static DEFINE_FSTR(FILE_AUTH, ".auth.json");
 
 /*
  * Given a username and password check the users list to see if there is a match.
@@ -31,19 +31,22 @@ static DEFINE_FSTR(FILE_AUTH, ".auth.json")
  */
 UserRole AuthManager::authenticateUser(const char* username, const char* password)
 {
-	if (username == nullptr)
+	if(username == nullptr) {
 		username = "";
-	if (password == nullptr)
+	}
+	if(password == nullptr) {
 		password = "";
+	}
 
 	JsonConfigFile config;
-	if (config.load(FILE_AUTH)) {
+	if(config.load(FILE_AUTH)) {
 		JsonArray& users = config[ATTR_USERS];
-		for (auto& user : users) {
-			if (strcasecmp(user[ATTR_NAME], username))
+		for(auto& user : users) {
+			if(strcasecmp(user[ATTR_NAME], username)) {
 				continue;
+			}
 
-			if (strcmp(user[ATTR_PASSWORD], password)) {
+			if(strcmp(user[ATTR_PASSWORD], password) != 0) {
 				debug_i("password mismatch");
 				break;
 			}
@@ -75,20 +78,22 @@ void AuthManager::login(WSCommandConnection* connection, JsonObject& json)
 	 * to permit network scanning and configuration.
 	 */
 
-	if (!name && !password && WifiAccessPoint.isEnabled()) {
+	if(name == nullptr && password == nullptr && WifiAccessPoint.isEnabled()) {
 		IPAddress ip = connection->getRemoteIp();
-		if (ip.compare(WifiAccessPoint.getIP(), WifiAccessPoint.getNetworkMask()))
+		if(ip.compare(WifiAccessPoint.getIP(), WifiAccessPoint.getNetworkMask())) {
 			access = UserRole::User;
-		else
+		} else {
 			debug_w("Different subnets, default access withheld");
+		}
 	}
 
-	if (access == UserRole::None)
+	if(access == UserRole::None) {
 		access = authenticateUser(name, password);
+	}
 
-	if (access == UserRole::None)
+	if(access == UserRole::None) {
 		setError(json, ioe_access_denied);
-	else {
+	} else {
 		setSuccess(json);
 
 		// OK, user/password matches
@@ -96,8 +101,9 @@ void AuthManager::login(WSCommandConnection* connection, JsonObject& json)
 		char buf[10];
 		json[ATTR_ACCESS] = String(userRoleToStr(access, buf, sizeof(buf)));
 
-		if (m_onLoginComplete)
-			m_onLoginComplete(connection, json);
+		if(loginCompleteCallback) {
+			loginCompleteCallback(connection, json);
+		}
 	}
 }
 
@@ -105,11 +111,10 @@ void AuthManager::handleMessage(WSCommandConnection* connection, JsonObject& jso
 {
 	const char* command = json[ATTR_COMMAND];
 
-	if (COMMAND_LOGIN == command) {
+	if(COMMAND_LOGIN == command) {
 		login(connection, json);
 	}
 
 	// Don't include password in response
 	json.remove(ATTR_PASSWORD);
 }
-

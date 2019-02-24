@@ -22,7 +22,6 @@
 #include "Platform/Station.h"
 #include "Data/HexString.h"
 
-
 // Global instance
 NetworkManager networkManager;
 
@@ -34,38 +33,38 @@ static const uint8_t DNS_PORT = 53;
 
 // Information broadcast via ZeroConf (LLMNR, MDNS)
 static const char MDNS_SERVER_NAME[] = "stslc";
-static const char MDNS_VERSION[] = "version = now";  //stslc_0.1
+static const char MDNS_VERSION[] = "version = now"; //stslc_0.1
 
 // System config file (private - secure)
-static DEFINE_FSTR(FILE_NETWORK_CONFIG, ".network.json")
-static DEFINE_FSTR(ATTR_HOSTNAME, "hostname")
-static DEFINE_FSTR(ATTR_SERVER_PORT, "server-port")
-static DEFINE_FSTR(DEFAULT_HOSTNAME, "lightcon")
+static DEFINE_FSTR(FILE_NETWORK_CONFIG, ".network.json");
+static DEFINE_FSTR(ATTR_HOSTNAME, "hostname");
+static DEFINE_FSTR(ATTR_SERVER_PORT, "server-port");
+static DEFINE_FSTR(DEFAULT_HOSTNAME, "lightcon");
 static const uint16_t DEFAULT_SERVER_PORT = 80;
 
 // WiFi details
-static DEFINE_FSTR(CONFIG_AP, "accesspoint")
-static DEFINE_FSTR(ATTR_SSID, "ssid")
-DEFINE_FSTR(ATTR_PASSWORD, "password")
-static DEFINE_FSTR(DEFAULT_AP_SSID, "STS Lightcon")
-static DEFINE_FSTR(DEFAULT_AP_PASSWORD, "sts welcome")
-static DEFINE_FSTR(ATTR_STATION, "station")
+static DEFINE_FSTR(CONFIG_AP, "accesspoint");
+static DEFINE_FSTR(ATTR_SSID, "ssid");
+DEFINE_FSTR(ATTR_PASSWORD, "password");
+static DEFINE_FSTR(DEFAULT_AP_SSID, "STS Lightcon");
+static DEFINE_FSTR(DEFAULT_AP_PASSWORD, "sts welcome");
+static DEFINE_FSTR(ATTR_STATION, "station");
 
 // WiFi scan information
-static DEFINE_FSTR(ATTR_NETWORKS, "networks")
-static DEFINE_FSTR(ATTR_BSSID, "bssid")
-static DEFINE_FSTR(ATTR_AUTH, "auth")
-static DEFINE_FSTR(ATTR_CHANNEL, "channel")
-static DEFINE_FSTR(ATTR_RSSI, "rssi")
-static DEFINE_FSTR(ATTR_HIDDEN, "hidden")
-static DEFINE_FSTR(ATTR_SIMPLEPAIR, "simplepair")
+static DEFINE_FSTR(ATTR_NETWORKS, "networks");
+static DEFINE_FSTR(ATTR_BSSID, "bssid");
+static DEFINE_FSTR(ATTR_AUTH, "auth");
+static DEFINE_FSTR(ATTR_CHANNEL, "channel");
+static DEFINE_FSTR(ATTR_RSSI, "rssi");
+static DEFINE_FSTR(ATTR_HIDDEN, "hidden");
+static DEFINE_FSTR(ATTR_SIMPLEPAIR, "simplepair");
 
 // Commands
-static DEFINE_FSTR(METHOD_NETWORK, "network")
-static DEFINE_FSTR(COMMAND_SCAN, "scan")
-static DEFINE_FSTR(COMMAND_CONFIG, "config")
-static DEFINE_FSTR(ATTR_MACADDR, "MAC Address")
-static DEFINE_FSTR(ATTR_IPADDR, "IP Address")
+static DEFINE_FSTR(METHOD_NETWORK, "network");
+static DEFINE_FSTR(COMMAND_SCAN, "scan");
+static DEFINE_FSTR(COMMAND_CONFIG, "config");
+static DEFINE_FSTR(ATTR_MACADDR, "MAC Address");
+static DEFINE_FSTR(ATTR_IPADDR, "IP Address");
 
 // WiFi event names
 #if DEBUG_BUILD
@@ -86,7 +85,7 @@ String macToStr(uint8_t hwaddr[6])
 
 String authModeToStr(AUTH_MODE mode)
 {
-	switch (mode) {
+	switch(mode) {
 	case AUTH_OPEN:
 		return F("OPEN");
 	case AUTH_WEP:
@@ -107,39 +106,39 @@ String authModeToStr(AUTH_MODE mode)
  */
 static String reasonToStr(uint8_t reason)
 {
-#define XX(_tag) \
-  case REASON_ ## _tag: \
-    return F(#_tag);
+#define XX(_tag)                                                                                                       \
+	case REASON_##_tag:                                                                                                \
+		return F(#_tag);
 
-	switch (reason) {
-	XX(UNSPECIFIED)
-	XX(AUTH_EXPIRE)
-	XX(AUTH_LEAVE)
-	XX(ASSOC_EXPIRE)
-	XX(ASSOC_TOOMANY)
-	XX(NOT_AUTHED)
-	XX(NOT_ASSOCED)
-	XX(ASSOC_LEAVE)
-	XX(ASSOC_NOT_AUTHED)
-	XX(DISASSOC_PWRCAP_BAD)
-	XX(DISASSOC_SUPCHAN_BAD)
-	XX(IE_INVALID)
-	XX(MIC_FAILURE)
-	XX(4WAY_HANDSHAKE_TIMEOUT)
-	XX(GROUP_KEY_UPDATE_TIMEOUT)
-	XX(IE_IN_4WAY_DIFFERS)
-	XX(GROUP_CIPHER_INVALID)
-	XX(PAIRWISE_CIPHER_INVALID)
-	XX(AKMP_INVALID)
-	XX(UNSUPP_RSN_IE_VERSION)
-	XX(INVALID_RSN_IE_CAP)
-	XX(802_1X_AUTH_FAILED)
-	XX(CIPHER_SUITE_REJECTED)
-	XX(BEACON_TIMEOUT)
-	XX(NO_AP_FOUND)
-	XX(AUTH_FAIL)
-	XX(ASSOC_FAIL)
-	XX(HANDSHAKE_TIMEOUT)
+	switch(reason) {
+		XX(UNSPECIFIED)
+		XX(AUTH_EXPIRE)
+		XX(AUTH_LEAVE)
+		XX(ASSOC_EXPIRE)
+		XX(ASSOC_TOOMANY)
+		XX(NOT_AUTHED)
+		XX(NOT_ASSOCED)
+		XX(ASSOC_LEAVE)
+		XX(ASSOC_NOT_AUTHED)
+		XX(DISASSOC_PWRCAP_BAD)
+		XX(DISASSOC_SUPCHAN_BAD)
+		XX(IE_INVALID)
+		XX(MIC_FAILURE)
+		XX(4WAY_HANDSHAKE_TIMEOUT)
+		XX(GROUP_KEY_UPDATE_TIMEOUT)
+		XX(IE_IN_4WAY_DIFFERS)
+		XX(GROUP_CIPHER_INVALID)
+		XX(PAIRWISE_CIPHER_INVALID)
+		XX(AKMP_INVALID)
+		XX(UNSUPP_RSN_IE_VERSION)
+		XX(INVALID_RSN_IE_CAP)
+		XX(802_1X_AUTH_FAILED)
+		XX(CIPHER_SUITE_REJECTED)
+		XX(BEACON_TIMEOUT)
+		XX(NO_AP_FOUND)
+		XX(AUTH_FAIL)
+		XX(ASSOC_FAIL)
+		XX(HANDSHAKE_TIMEOUT)
 	default:
 		return F("REASON_") + String(reason);
 	}
@@ -150,38 +149,31 @@ static String reasonToStr(uint8_t reason)
 void NetworkManager::startMDNS()
 {
 	// Windows uses this one
-	if (LLMNR.begin(m_hostname))
+	if(LLMNR.begin(hostName)) {
 		debug_i("LLMNR responder started");
-	else
+	} else {
 		debug_e("LLMNR responder failed to start");
+	}
 
 #ifdef ENABLE_ESPCONN
-	struct mdns_info info = {
-		.host_name = m_hostname.begin(),
-		.server_name = (char*)MDNS_SERVER_NAME,
-		.server_port = m_serverPort,
-		.ipAddr = WifiStation.getIP(),
-		.txt_data = {(char*)MDNS_VERSION}
-	};
+	struct mdns_info info = {.host_name = hostName.begin(),
+							 .server_name = (char*)MDNS_SERVER_NAME,
+							 .server_port = serverPort,
+							 .ipAddr = WifiStation.getIP(),
+							 .txt_data = {(char*)MDNS_VERSION}};
 	espconn_mdns_init(&info);
 #endif
 }
 
-void NetworkManager::onStatusChange(network_callback_t callback)
+void NetworkManager::wifiEventHandler(System_Event_t* evt)
 {
-	m_onStatusChange = callback;
-}
-
-void NetworkManager::wifiEventHandler(System_Event_t *evt)
-{
-	switch (evt->event)
-	{
+	switch(evt->event) {
 	case EVENT_STAMODE_CONNECTED: {
 #if DEBUG_BUILD
 		Event_StaMode_Connected_t& e = evt->event_info.connected;
 		debug_i("%s('%s', #%d)", STAMODE_CONNECTED, e.ssid, e.channel);
 #endif
-		if (m_configConnection)
+		if(configConnection)
 			configComplete(0);
 		break;
 	}
@@ -189,10 +181,11 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 	case EVENT_STAMODE_DISCONNECTED: {
 		Event_StaMode_Disconnected_t& e = evt->event_info.disconnected;
 #if DEBUG_BUILD
-		debug_i("%s('%s', %s, %u %s)", STAMODE_DISCONNECTED, e.ssid, macToStr(e.bssid).c_str(), e.reason, reasonToStr(e.reason).c_str());
+		debug_i("%s('%s', %s, %u %s)", STAMODE_DISCONNECTED, e.ssid, macToStr(e.bssid).c_str(), e.reason,
+				reasonToStr(e.reason).c_str());
 #endif
 		statusChanged(nwc_disconnected);
-		if (m_configConnection)
+		if(configConnection)
 			configComplete(e.reason);
 		break;
 	}
@@ -241,10 +234,8 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
 		break;
 	}
 
-	default:
-		;
+	default:;
 	}
-
 }
 
 /*
@@ -253,23 +244,23 @@ void NetworkManager::wifiEventHandler(System_Event_t *evt)
  */
 bool NetworkManager::accessPointMode(bool enable)
 {
-	if (m_dnsServer) {
-		delete m_dnsServer;
-		m_dnsServer = nullptr;
+	if(dnsServer != nullptr) {
+		delete dnsServer;
+		dnsServer = nullptr;
 	}
 
-//  WifiStation.enable(true);
+	//  WifiStation.enable(true);
 	WifiStation.enable(false);
 
 	bool ret = true;
-	if (enable) {
+	if(enable) {
 		wifi_info_t info;
 		{
 			JsonConfigFile config;
 			config.load(FILE_NETWORK_CONFIG);
 			JsonObject& ap = config[CONFIG_AP];
-			info.ssid = ap[ATTR_SSID].asString() ? : String(DEFAULT_AP_SSID);
-			info.password = ap[ATTR_PASSWORD].asString() ? : String(DEFAULT_AP_PASSWORD);
+			info.ssid = ap[ATTR_SSID].asString() ?: String(DEFAULT_AP_SSID);
+			info.password = ap[ATTR_PASSWORD].asString() ?: String(DEFAULT_AP_PASSWORD);
 		}
 
 		wifi_station_set_reconnect_policy(false);
@@ -277,13 +268,13 @@ bool NetworkManager::accessPointMode(bool enable)
 		WifiAccessPoint.enable(true);
 		ret = WifiAccessPoint.config(info.ssid, info.password, info.password.length() ? AUTH_WPA2_PSK : AUTH_OPEN);
 
-		m_dnsServer = new DNSServer();
-		if (m_dnsServer)
-			m_dnsServer->start(DNS_PORT, "*", WifiAccessPoint.getIP());
+		dnsServer = new DNSServer();
+		if(dnsServer != nullptr) {
+			dnsServer->start(DNS_PORT, "*", WifiAccessPoint.getIP());
+		}
 
 		debug_i("AP mode, SSID '%s' - %s", WifiAccessPoint.getSSID().c_str(), ret ? _F("OK") : _F("FAILED"));
-	}
-	else {
+	} else {
 		WifiAccessPoint.enable(false);
 		WifiStation.enable(true);
 		WifiStation.connect();
@@ -298,13 +289,15 @@ bool NetworkManager::accessPointMode(bool enable)
 void NetworkManager::configure(WSCommandConnection* connection, JsonObject& json)
 {
 	// If connection's been dropped we can continue
-	if (m_configConnection)
-		if (!m_configConnection->active())
-			m_configConnection = nullptr;
+	if(configConnection != nullptr) {
+		if(!configConnection->active()) {
+			configConnection = nullptr;
+		}
+	}
 
 	// Already configuring ?
-	if (m_configConnection) {
-		if (m_configConnection == connection) {
+	if(configConnection != nullptr) {
+		if(configConnection == connection) {
 			setPending(json);
 			return;
 		}
@@ -314,14 +307,14 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject& json
 	}
 
 	// Hostname is an optional parameter
-	const char* hostname = json[ATTR_HOSTNAME];
-	if (hostname) {
-		if (WifiStation.getHostname() != hostname) {
-			m_hostname = hostname;
-			WifiStation.setHostname(m_hostname);
+	const char* configHostname = json[ATTR_HOSTNAME];
+	if(configHostname != nullptr) {
+		if(WifiStation.getHostname() != configHostname) {
+			hostName = configHostname;
+			WifiStation.setHostname(hostName);
 			JsonConfigFile config;
 			config.load(FILE_NETWORK_CONFIG);
-			config[ATTR_HOSTNAME] = m_hostname;
+			config[ATTR_HOSTNAME] = hostName;
 			config.save(FILE_NETWORK_CONFIG);
 		}
 	}
@@ -337,7 +330,7 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject& json
 	 *
 	 */
 	wifi_info_t* info = new wifi_info_t;
-	if (!info) {
+	if(!info) {
 		setError(json, ioe_nomem);
 		return;
 	}
@@ -346,28 +339,30 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject& json
 	// Don't send password back in response
 	json.remove(ATTR_PASSWORD);
 
-	m_configConnection = connection;
+	configConnection = connection;
 
 	auto callback = [](os_param_t param) {
 		auto info = reinterpret_cast<wifi_info_t*>(param);
 		// The settings are saved by the ESP8266 firmware
-//    WifiAccessPoint.enable(false);
-		if (WifiStation.isConnected())
+		//    WifiAccessPoint.enable(false);
+		if(WifiStation.isConnected()) {
 			WifiStation.disconnect();
-		else
+		} else {
 			WifiStation.enable(true);
+		}
 		bool res = WifiStation.config(info->ssid, info->password);
 		delete info;
-		if (res)
+		if(res) {
 			res = WifiStation.connect();
+		}
 
-		if (res) {
-			debug_i("Hostname '%s' connecting to SSID '%s'", WifiStation.getHostname().c_str(), WifiStation.getSSID().c_str());
+		if(res) {
+			debug_i("Hostname '%s' connecting to SSID '%s'", WifiStation.getHostname().c_str(),
+					WifiStation.getSSID().c_str());
 			/*
 			 * We now wait for connection
 			 */
-		}
-		else {
+		} else {
 			debug_w("Station config failed");
 			networkManager.configComplete(REASON_UNSPECIFIED);
 		}
@@ -387,57 +382,59 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject& json
  */
 void NetworkManager::configComplete(uint8_t errReason)
 {
-	if (errReason)
+	if(errReason) {
 		WifiStation.disconnect();
+	}
 
 	// Low-value reasons are 'internal' values so we only send the final result to the client
-//  if (reason < REASON_BEACON_TIMEOUT)
-//    return;
+	//  if (reason < REASON_BEACON_TIMEOUT)
+	//    return;
 
-	if (m_configConnection) {
+	if(configConnection) {
 		DynamicJsonBuffer buffer;
 		JsonObject& json = buffer.createObject();
 		json[ATTR_METHOD] = String(METHOD_NETWORK);
 		json[ATTR_COMMAND] = String(COMMAND_CONFIG);
-		if (errReason)
+		if(errReason) {
 			setError(json, errReason, reasonToStr(errReason));
-		else
+		} else {
 			setSuccess(json);
+		}
 
-		m_configConnection->send(json);
+		configConnection->send(json);
 
-		if (!errReason)
-			m_configConnection = nullptr;
+		if(!errReason) {
+			configConnection = nullptr;
+		}
 	}
 
-	if (!errReason && WifiAccessPoint.isEnabled())
-		System.queueCallback([](os_param_t) {
-			networkManager.accessPointMode(false);
-		});
+	if(!errReason && WifiAccessPoint.isEnabled())
+		System.queueCallback([](os_param_t) { networkManager.accessPointMode(false); });
 }
 
 void NetworkManager::scanComplete(void* arg, STATUS status)
 {
-	if (status != OK)
+	if(status != OK) {
 		debug_w("Network scan failed (%u)", status);
+	}
 
-	if (!m_scanConnection)
+	if(!scanConnection) {
 		return;
+	}
 
 	DynamicJsonBuffer buffer;
 	JsonObject& json = buffer.createObject();
 	json[ATTR_METHOD] = String(METHOD_NETWORK);
 	json[ATTR_COMMAND] = String(COMMAND_SCAN);
 
-	if (status != OK) {
+	if(status != OK) {
 		setError(json, status);
-	}
-	else {
+	} else {
 		setSuccess(json);
 		JsonArray& networks = json.createNestedArray(ATTR_NETWORKS);
 
 		BssInfoEnum bss;
-		if (bss.init(static_cast<bss_info*>(arg)))
+		if(bss.init(static_cast<bss_info*>(arg)))
 			do {
 				JsonObject& nw = networks.createNestedObject();
 				nw[ATTR_SSID] = bss.SSID();
@@ -447,46 +444,39 @@ void NetworkManager::scanComplete(void* arg, STATUS status)
 				nw[ATTR_RSSI] = bss.rssi();
 				nw[ATTR_HIDDEN] = bss.hidden();
 				nw[ATTR_SIMPLEPAIR] = bss.simplePair();
-			} while (bss.next());
+			} while(bss.next());
 	}
 
-	m_scanConnection->send(json);
-	m_scanConnection = nullptr;
+	scanConnection->send(json);
+	scanConnection = nullptr;
 }
 
 void NetworkManager::scan(WSCommandConnection* connection, JsonObject& json)
 {
 	// Scan in progress ?
-	if (m_scanConnection) {
+	if(scanConnection) {
 		setError(json);
 		return;
 	}
 
 	WifiStation.enable(true);
-	auto cb = [](void* arg, STATUS status) {
-		networkManager.scanComplete(arg, status);
-	};
-	if (!wifi_station_scan(NULL, cb)) {
+	auto cb = [](void* arg, STATUS status) { networkManager.scanComplete(arg, status); };
+	if(!wifi_station_scan(NULL, cb)) {
 		setError(json);
 		return;
 	}
 
-	m_scanConnection = connection;
+	scanConnection = connection;
 	setPending(json);
 }
 
-NetworkManager::NetworkManager() :
-m_ntpClient((NtpTimeResultDelegate)[](NtpClient& client, time_t timestamp) {
-		timeManager.update(timestamp);
-	})
+NetworkManager::NetworkManager() : ntpClient(NtpTimeResultDelegate(&NetworkManager::onNtpReceive, this))
 {
 }
 
 void NetworkManager::begin()
 {
-	wifi_set_event_handler_cb([](System_Event_t* evt) {
-		networkManager.wifiEventHandler(evt);
-	});
+	wifi_set_event_handler_cb([](System_Event_t* evt) { networkManager.wifiEventHandler(evt); });
 
 	WifiAccessPoint.enable(false);
 	WifiStation.enable(true);
@@ -494,13 +484,14 @@ void NetworkManager::begin()
 	{
 		JsonConfigFile config;
 		config.load(FILE_NETWORK_CONFIG);
-		m_hostname = config[ATTR_HOSTNAME].asString() ? : String(DEFAULT_HOSTNAME);
-		WifiStation.setHostname(m_hostname);
-		m_serverPort = config[ATTR_SERVER_PORT].as<uint16_t>() ? : DEFAULT_SERVER_PORT;
+		hostName = config[ATTR_HOSTNAME].asString() ?: String(DEFAULT_HOSTNAME);
+		WifiStation.setHostname(hostName);
+		serverPort = config[ATTR_SERVER_PORT].as<uint16_t>() ?: DEFAULT_SERVER_PORT;
 
 		JsonObject& station = config[ATTR_STATION];
-		if (station.success())
+		if(station.success()) {
 			configure(nullptr, station);
+		}
 	}
 }
 
@@ -513,19 +504,19 @@ void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject& 
 {
 	const char* command = json[ATTR_COMMAND];
 
-	if (COMMAND_INFO == command) {
+	if(COMMAND_INFO == command) {
 		json[ATTR_MACADDR] = WifiStation.getMAC();
 		json[ATTR_IPADDR] = WifiStation.getIP().toString();
 		json[ATTR_SSID] = WifiStation.getSSID();
 		return;
 	}
 
-	if (COMMAND_SCAN == command) {
+	if(COMMAND_SCAN == command) {
 		scan(connection, json);
 		return;
 	}
 
-	if (COMMAND_CONFIG == command) {
+	if(COMMAND_CONFIG == command) {
 		configure(connection, json);
 		return;
 	}
@@ -533,9 +524,9 @@ void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject& 
 
 void NetworkManager::ntpInit()
 {
-//  m_ntpClient.setNtpServer(NTP_SERVER());
-	m_ntpClient.setAutoQuery(true);
-	m_ntpClient.requestTime();
+	//  m_ntpClient.setNtpServer(NTP_SERVER());
+	ntpClient.setAutoQuery(true);
+	ntpClient.requestTime();
 }
 
 void NetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
@@ -543,4 +534,3 @@ void NetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
 	debug_i("NetworkManager::onNtpReceive(%u)", timestamp);
 	timeManager.update(timestamp);
 }
-

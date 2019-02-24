@@ -15,13 +15,12 @@
 
 typedef Delegate<void(WSCommandConnection* connection, JsonObject& json)> login_callback_t;
 
-class AuthManager: public WSCommandHandler
+class AuthManager : public WSCommandHandler
 {
 public:
-
 	void onLoginComplete(login_callback_t callback)
 	{
-		m_onLoginComplete = callback;
+		loginCompleteCallback = callback;
 	}
 
 	/* CCommandHandler */
@@ -40,8 +39,7 @@ private:
 	void login(WSCommandConnection* connection, JsonObject& json);
 
 private:
-	login_callback_t m_onLoginComplete;
-
+	login_callback_t loginCompleteCallback;
 };
 
 #endif // __AUTH_MANAGER_H
