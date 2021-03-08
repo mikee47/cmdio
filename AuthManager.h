@@ -1,0 +1,43 @@
+/*
+ * AuthManager.h
+ *
+ *  Created on: 11 June 2018
+ *      Author: mikee47
+ *
+ * Manages user authentication.
+ *
+ */
+
+#pragma once
+
+#include "CommandHandler.h"
+
+typedef Delegate<void(WSCommandConnection* connection, JsonObject json)> LoginDelegate;
+
+class AuthManager : public WSCommandHandler
+{
+public:
+	void onLoginComplete(LoginDelegate callback)
+	{
+		loginCompleteCallback = callback;
+	}
+
+	static UserRole authenticateUser(const char* username, const char* password);
+
+	/* WSCommandHandler */
+
+	String getMethod() const override;
+
+	UserRole getMinAccess() const override
+	{
+		return UserRole::None;
+	}
+
+	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
+
+private:
+	void login(WSCommandConnection* connection, JsonObject json);
+
+private:
+	LoginDelegate loginCompleteCallback;
+};
