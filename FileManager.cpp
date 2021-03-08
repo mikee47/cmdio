@@ -28,7 +28,7 @@ DEFINE_FSTR_LOCAL(COMMAND_CHECK, "check")
 // FORMAT
 DEFINE_FSTR_LOCAL(COMMAND_FORMAT, "format")
 
-bool FileManager::init(const void* fwfsImageData)
+bool FileManager::init()
 {
 	fileFreeFileSystem();
 
@@ -37,11 +37,13 @@ bool FileManager::init(const void* fwfsImageData)
 #endif
 	debug_i("1: heap = %u", freeheap);
 
+	auto fwfsPartition = *Storage::findPartition(Storage::Partition::SubType::Data::fwfs);
 	IFS::IFileSystem* fs;
 #ifdef FWFS_HYBRID
-	fs = IFS::createHybridFilesystem(fwfsImageData);
+	auto spiffsPartition = *Storage::findPartition(Storage::Partition::SubType::Data::spiffs);
+	fs = IFS::createHybridFilesystem(fwfsPartition, spiffsPartition);
 #else
-	fs = IFS::createFirmwareFilesystem(fwfsImageData);
+	fs = IFS::createFirmwareFilesystem(fwfsPartition);
 #endif
 	debug_i("2: heap = -%u", freeheap - system_get_free_heap_size());
 

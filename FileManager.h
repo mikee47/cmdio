@@ -25,7 +25,7 @@ public:
 		endUpload();
 	}
 
-	bool init(const void* fwfsImageData);
+	bool init();
 
 	/* WSCommandHandler */
 	String getMethod() const override;

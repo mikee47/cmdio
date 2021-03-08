@@ -6,8 +6,8 @@
  */
 
 #include <Data/Stream/TemplateFileStream.h>
-#include <JsonDirectoryStream.h>
-#include <Data/Stream/HtmlDirectoryStream.h>
+#include <Data/Stream/IFS/JsonDirectoryTemplate.h>
+#include <Data/Stream/IFS/HtmlDirectoryTemplate.h>
 
 #include "WebServer.h"
 
@@ -17,6 +17,9 @@
 #include <Network/WebHelpers/escape.h>
 
 #include <IO/Strings.h>
+
+IMPORT_FSTR_LOCAL(FS_LISTING_HTML, COMPONENT_PATH "/resource/listing.html")
+IMPORT_FSTR_LOCAL(FS_LISTING_JSON, COMPONENT_PATH "/resource/listing.json")
 
 DEFINE_FSTR(FILE_INDEX_HTML, "index.html");
 DEFINE_FSTR_LOCAL(FILE_CONFIG_HTML, "config.html");
@@ -82,7 +85,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 #if DEBUG_BUILD
 	IpAddress ip = connection.getRemoteIp();
 	uint16_t port = connection.getRemotePort();
-	debug_i("%s(%s[%u], '%s') from %s:%u", funcName, request.methodStr().c_str(), request.method, file.c_str(),
+	debug_i("%s(%s[%u], '%s') from %s:%u", funcName, toString(request.method).c_str(), request.method, file.c_str(),
 			ip.toString().c_str(), port);
 	String s = request.uri.toString().c_str();
 	debug_hex(INFO, "URI", s.c_str(), s.length());
@@ -90,7 +93,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 
 	auto contentType = ContentType::fromString(request.headers[HTTP_HEADER_CONTENT_TYPE]);
 
-	if(!contentType) {
+	if(contentType == MIME_UNKNOWN) {
 		if(file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file))) {
 			file = FILE_INDEX_HTML;
 		}
@@ -101,7 +104,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 	sendFile(file, contentType, request.getQueryParameter(ATTR_CID), response);
 
 	// For errors construct and send error page
-	if(response.code >= 400) {
+	if(!response.isSuccess()) {
 		debug_i("%s(): code = %d", funcName, response.code);
 
 		auto status = http_status(response.code);
@@ -141,25 +144,29 @@ void WebServer::sendFile(const String& filename, MimeType contentType, const Str
 	}
 
 	stat.name = IFS::NameBuffer{const_cast<String&>(filename)};
-	if(stat.attr[File::Attribute::Directory]) {
-		auto dir = new DirectoryStream(filename);
-		auto err = dir->getLastError();
-		if(err < 0) {
+	if(stat.attr[FileAttribute::Directory]) {
+		auto dir = new Directory;
+		if(!dir->open(filename)) {
 			response.code = HTTP_STATUS_INTERNAL_SERVER_ERROR;
 			delete dir;
 			return;
 		}
 
+		IFS::DirectoryTemplate* tmpl{nullptr};
+
 		switch(contentType) {
 		case MIME_JSON:
-			response.sendDataStream(new JsonDirectoryStream(dir), contentType);
+			tmpl = new IFS::JsonDirectoryTemplate(new FlashMemoryStream(FS_LISTING_JSON), dir);
 			break;
 		case MIME_HTML:
-			response.sendDataStream(new HtmlDirectoryStream(dir), contentType);
+			tmpl = new IFS::HtmlDirectoryTemplate(new FlashMemoryStream(FS_LISTING_HTML), dir);
 			break;
 		default:
+			delete dir;
 			response.code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
+			return;
 		}
+		response.sendDataStream(tmpl, contentType);
 		return;
 	}
 

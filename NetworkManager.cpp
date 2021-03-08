@@ -13,8 +13,7 @@
  *
  */
 
-#include "ESP8266LLMNR/ESP8266LLMNR.h"
-
+#include <ESP8266LLMNR/ESP8266LLMNR.h>
 #include <core/TimeManager.h>
 #include "NetworkManager.h"
 #include "FileManager.h"
@@ -33,10 +32,6 @@ static LLMNRResponder LLMNR;
 
 // DNS parameters
 static const uint8_t DNS_PORT = 53;
-
-// Information broadcast via ZeroConf (LLMNR, MDNS)
-static const char MDNS_SERVER_NAME[] = "smingifs";
-static const char MDNS_VERSION[] = "version = now";
 
 // System config file (private - secure)
 DEFINE_FSTR_LOCAL(FILE_NETWORK_CONFIG, ".network.json");
@@ -78,16 +73,11 @@ void NetworkManager::startMDNS()
 		debug_e("LLMNR responder failed to start");
 	}
 
-#ifdef ENABLE_ESPCONN
-	struct mdns_info info = {
-		.host_name = hostName.begin(),
-		.server_name = (char*)MDNS_SERVER_NAME,
-		.server_port = serverPort,
-		.ipAddr = WifiStation.getIP(),
-		.txt_data = {(char*)MDNS_VERSION},
-	};
-	espconn_mdns_init(&info);
-#endif
+	if(mdnsResponder.begin(hostName)) {
+		debug_i("MDNS responder started");
+	} else {
+		debug_e("MDNS responder failed to start");
+	}
 }
 
 void NetworkManager::setEventHandlers()

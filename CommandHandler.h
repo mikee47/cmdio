@@ -9,7 +9,7 @@
 
 #include <ArduinoJson.h>
 #include <IpAddress.h>
-#include <IFS/File/Access.h>
+#include <IFS/Access.h>
 #include <IO/Error.h>
 #include "CommandConnection.h"
 

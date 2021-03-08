@@ -8,12 +8,13 @@
 #pragma once
 
 #include "CommandHandler.h"
-#include "Network/DnsServer.h"
-#include "Network/NtpClient.h"
-#include "Platform/AccessPoint.h"
-#include "Platform/Station.h"
+#include <Network/Mdns/Responder.h>
+#include <Network/DnsServer.h>
+#include <Network/NtpClient.h>
+#include <Platform/AccessPoint.h>
+#include <Platform/Station.h>
 #include <Platform/WifiEvents.h>
-#include "WString.h"
+#include <WString.h>
 
 DECLARE_FSTR(ATTR_PASSWORD)
 DECLARE_FSTR(COMMAND_DISCOVER);
@@ -118,6 +119,8 @@ private:
 	WSCommandConnection* scanConnection = nullptr;
 	// For keeping system clock accurate
 	NtpClient* ntpClient = nullptr;
+	//
+	mDNS::Responder mdnsResponder;
 };
 
 extern NetworkManager networkManager;
