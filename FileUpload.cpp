@@ -17,7 +17,7 @@ int FileUpload::init(const char* filename, size_t size)
 {
 	fileName = filename;
 	fileSize = size;
-	fileHandle = fileOpen(fileName, eFO_CreateNewAlways | eFO_WriteOnly);
+	fileHandle = fileOpen(fileName, File::CreateNewAlways | File::WriteOnly);
 	debug_i("fileOpen('%s'): %d", filename, fileHandle);
 	if(fileHandle < 0) {
 		return fileHandle;

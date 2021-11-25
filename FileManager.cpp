@@ -41,7 +41,8 @@ bool FileManager::init()
 	IFS::IFileSystem* fs;
 #ifdef FWFS_HYBRID
 	auto spiffsPartition = *Storage::findPartition(Storage::Partition::SubType::Data::spiffs);
-	fs = IFS::createHybridFilesystem(fwfsPartition, spiffsPartition);
+	auto spiffs = IFS::createSpiffsFilesystem(spiffsPartition);
+	fs = IFS::createHybridFilesystem(fwfsPartition, spiffs);
 #else
 	fs = IFS::createFirmwareFilesystem(fwfsPartition);
 #endif

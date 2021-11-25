@@ -327,7 +327,7 @@ void NetworkManager::scanComplete(bool success, BssList& list)
 			auto& bss = list[i];
 			JsonObject nw = networks.createNestedObject();
 			nw[ATTR_SSID] = bss.ssid;
-			nw[ATTR_BSSID] = bss.bssid;
+			nw[ATTR_BSSID] = bss.bssid.toString();
 			nw[ATTR_AUTH] = bss.getAuthorizationMethodName();
 			nw[ATTR_CHANNEL] = bss.channel;
 			nw[ATTR_RSSI] = bss.rssi;

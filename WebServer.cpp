@@ -14,7 +14,7 @@
 #include "WebsocketManager.h"
 #include "FileManager.h"
 #include "NetworkManager.h"
-#include <Network/WebHelpers/escape.h>
+// #include <Data/WebHelpers/escape.h>
 
 #include <IO/Strings.h>
 
@@ -143,35 +143,33 @@ void WebServer::sendFile(const String& filename, MimeType contentType, const Str
 		return;
 	}
 
-	stat.name = IFS::NameBuffer{const_cast<String&>(filename)};
-	if(stat.attr[FileAttribute::Directory]) {
+	if(!stat.attr[FileAttribute::Directory]) {
+		// Regular file
+		response.sendFile(filename);
+		return;
+	}
+
+	auto sendTemplate = [&](const FlashString& templateSource) {
 		auto dir = new Directory;
 		if(!dir->open(filename)) {
 			response.code = HTTP_STATUS_INTERNAL_SERVER_ERROR;
 			delete dir;
 			return;
 		}
-
-		IFS::DirectoryTemplate* tmpl{nullptr};
-
-		switch(contentType) {
-		case MIME_JSON:
-			tmpl = new IFS::JsonDirectoryTemplate(new FlashMemoryStream(FS_LISTING_JSON), dir);
-			break;
-		case MIME_HTML:
-			tmpl = new IFS::HtmlDirectoryTemplate(new FlashMemoryStream(FS_LISTING_HTML), dir);
-			break;
-		default:
-			delete dir;
-			response.code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
-			return;
-		}
+		auto tmpl = new IFS::JsonDirectoryTemplate(new FlashMemoryStream(templateSource), dir);
 		response.sendDataStream(tmpl, contentType);
-		return;
-	}
+	};
 
-	// Regular file
-	response.sendFile(stat);
+	switch(contentType) {
+	case MIME_JSON:
+		sendTemplate(FS_LISTING_JSON);
+		break;
+	case MIME_HTML:
+		sendTemplate(FS_LISTING_HTML);
+		break;
+	default:
+		response.code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
+	}
 }
 
 bool WebServer::start(const HttpServerSettings& settings)
