@@ -67,6 +67,10 @@ public:
 		return false;
 	}
 
+	virtual void fileChange(const String& filename)
+	{
+	}
+
 	bool operator==(const WSCommandHandler& handler) const
 	{
 		return this == &handler;

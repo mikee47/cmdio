@@ -214,3 +214,10 @@ WebsocketResource* WebsocketManager::createResource()
 	wsResource->setBinaryHandler(WebsocketBinaryDelegate(&WebsocketManager::binaryReceived, this));
 	return wsResource;
 }
+
+void WebsocketManager::fileChange(const String& filename)
+{
+	for(auto& handler : handlers) {
+		handler->fileChange(filename);
+	}
+}

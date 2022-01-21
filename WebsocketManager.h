@@ -47,6 +47,8 @@ public:
 		return WebsocketConnection::getActiveWebsockets().count();
 	}
 
+	void fileChange(const String& filename);
+
 private:
 	// WebSocketResource callbacks
 	static void connected(WebsocketConnection& socket);
