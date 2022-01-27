@@ -44,7 +44,7 @@ public:
 
 private:
 	int requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response);
-	void sendFile(const String& filename, MimeType contentType, const String& cid, HttpResponse& response);
+	void sendFile(const String& filename, const String& format, const String& cid, HttpResponse& response);
 
 private:
 	HttpServer* server = nullptr;

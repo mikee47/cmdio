@@ -21,16 +21,20 @@
 IMPORT_FSTR_LOCAL(FS_LISTING_HTML, COMPONENT_PATH "/resource/listing.html")
 IMPORT_FSTR_LOCAL(FS_LISTING_JSON, COMPONENT_PATH "/resource/listing.json")
 
-DEFINE_FSTR(FILE_INDEX_HTML, "index.html");
-DEFINE_FSTR_LOCAL(FILE_CONFIG_HTML, "config.html");
-DEFINE_FSTR_LOCAL(FILE_ERROR_HTML, "error.html");
+DEFINE_FSTR(FILE_INDEX_HTML, "index.html")
+DEFINE_FSTR_LOCAL(FILE_CONFIG_HTML, "config.html")
+DEFINE_FSTR_LOCAL(FILE_ERROR_HTML, "error.html")
 
-DEFINE_FSTR_LOCAL(METHOD_WEB, "web");
-DEFINE_FSTR_LOCAL(ATTR_PATH, "path");
-DEFINE_FSTR_LOCAL(ATTR_CODE, "code");
-DEFINE_FSTR_LOCAL(ATTR_TEXT, "text");
-DEFINE_FSTR_LOCAL(ATTR_CLIENTS, "clients");
-DEFINE_FSTR_LOCAL(ATTR_SOCKETS, "sockets");
+DEFINE_FSTR_LOCAL(METHOD_WEB, "web")
+DEFINE_FSTR_LOCAL(ATTR_PATH, "path")
+DEFINE_FSTR_LOCAL(ATTR_CODE, "code")
+DEFINE_FSTR_LOCAL(ATTR_TEXT, "text")
+DEFINE_FSTR_LOCAL(ATTR_CLIENTS, "clients")
+DEFINE_FSTR_LOCAL(ATTR_SOCKETS, "sockets")
+DEFINE_FSTR_LOCAL(ATTR_FORMAT, "format")
+
+DEFINE_FSTR_LOCAL(FORMAT_JSON, "json")
+DEFINE_FSTR_LOCAL(FORMAT_HTML, "html")
 
 /*
  * All web file requests come here.
@@ -88,12 +92,11 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 	debug_i("%s(%s[%u], '%s') from %s:%u", funcName, toString(request.method).c_str(), request.method, file.c_str(),
 			ip.toString().c_str(), port);
 	String s = request.uri.toString().c_str();
-	debug_hex(INFO, "URI", s.c_str(), s.length());
+	debug_hex(DBG, "URI", s.c_str(), s.length());
 #endif
 
-	auto contentType = ContentType::fromString(request.headers[HTTP_HEADER_CONTENT_TYPE]);
-
-	if(contentType == MIME_UNKNOWN) {
+	auto format = request.getQueryParameter(ATTR_FORMAT);
+	if(!format) {
 		if(file.length() == 0 || (WifiAccessPoint.isEnabled() && !fileExist(file))) {
 			file = FILE_INDEX_HTML;
 		}
@@ -101,7 +104,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 
 	//  WifiAccessPoint.isEnabled() ? FILE_CONFIG_HTML() : FILE_INDEX_HTML();
 
-	sendFile(file, contentType, request.getQueryParameter(ATTR_CID), response);
+	sendFile(file, format, request.getQueryParameter(ATTR_CID), response);
 
 	// For errors construct and send error page
 	if(!response.isSuccess()) {
@@ -119,7 +122,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 	return 0;
 }
 
-void WebServer::sendFile(const String& filename, MimeType contentType, const String& cid, HttpResponse& response)
+void WebServer::sendFile(const String& filename, const String& format, const String& cid, HttpResponse& response)
 {
 	auto cc = socketManager.findConnection(cid.c_str());
 	UserRole access = (cc == nullptr) ? UserRole::None : cc->getAccess();
@@ -149,7 +152,7 @@ void WebServer::sendFile(const String& filename, MimeType contentType, const Str
 		return;
 	}
 
-	auto sendTemplate = [&](const FlashString& templateSource) {
+	auto sendTemplate = [&](const FlashString& templateSource, MimeType contentType) {
 		auto dir = new Directory;
 		if(!dir->open(filename)) {
 			response.code = HTTP_STATUS_INTERNAL_SERVER_ERROR;
@@ -160,14 +163,12 @@ void WebServer::sendFile(const String& filename, MimeType contentType, const Str
 		response.sendDataStream(tmpl, contentType);
 	};
 
-	switch(contentType) {
-	case MIME_JSON:
-		sendTemplate(FS_LISTING_JSON);
-		break;
-	case MIME_HTML:
-		sendTemplate(FS_LISTING_HTML);
-		break;
-	default:
+	if(FORMAT_JSON == format) {
+		sendTemplate(FS_LISTING_JSON, MIME_JSON);
+	} else if(FORMAT_HTML == format) {
+		sendTemplate(FS_LISTING_HTML, MIME_HTML);
+	} else {
+		debug_e("Unknown format '%s'", format.c_str());
 		response.code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
 	}
 }
