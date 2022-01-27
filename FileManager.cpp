@@ -10,6 +10,8 @@
 
 using namespace FileUtils;
 
+namespace
+{
 // LIST
 DEFINE_FSTR_LOCAL(COMMAND_LIST, "list")
 DEFINE_FSTR_LOCAL(ATTR_FILES, "files")
@@ -26,45 +28,7 @@ DEFINE_FSTR_LOCAL(COMMAND_CHECK, "check")
 // FORMAT
 DEFINE_FSTR_LOCAL(COMMAND_FORMAT, "format")
 
-bool FileManager::init()
-{
-	fileFreeFileSystem();
-
-#if DEBUG_VERBOSE_LEVEL >= INFO
-	auto freeheap = system_get_free_heap_size();
-#endif
-	debug_i("1: heap = %u", freeheap);
-	if(!fwfs_mount()) {
-		return false;
-	}
-	debug_i("2: heap = -%u", freeheap - system_get_free_heap_size());
-
-	auto part = Storage::findPartition(F("config"));
-	if(!part) {
-		debug_e("Missing config partition");
-		return false;
-	}
-	auto lfs = IFS::createLfsFilesystem(part);
-	if(!lfs || lfs->mount() != FS_OK) {
-		return false;
-	}
-	assert(getFileSystem()->setVolume(1, lfs) == FS_OK);
-
-	return true;
-}
-
-void FileManager::endUpload()
-{
-	if(upload) {
-		if(callback) {
-			callback(*upload);
-		}
-		delete upload;
-		upload = nullptr;
-	}
-}
-
-static JsonObject findOrCreateFile(JsonArray& files, const String& name)
+JsonObject findOrCreateFile(JsonArray& files, const String& name)
 {
 	String attrName = ATTR_NAME;
 
@@ -102,7 +66,7 @@ static JsonObject findOrCreateFile(JsonArray& files, const String& name)
  * tagging the transfer in some way. Probably not.
  *
  */
-static void listFiles(JsonObject json)
+void listFiles(JsonObject json)
 {
 	JsonArray files = json.createNestedArray(ATTR_FILES);
 
@@ -124,7 +88,7 @@ static void listFiles(JsonObject json)
 	}
 }
 
-static void deleteFiles(JsonObject json)
+void deleteFiles(JsonObject json)
 {
 	int res = FS_OK;
 	String dir;
@@ -152,7 +116,7 @@ static void deleteFiles(JsonObject json)
 	}
 }
 
-static void getInfo(JsonObject json)
+void getInfo(JsonObject json)
 {
 	IFS::IFileSystem::Info info;
 	int err = fileGetSystemInfo(info);
@@ -165,7 +129,7 @@ static void getInfo(JsonObject json)
 	IO::setSuccess(json);
 }
 
-static void check(JsonObject json)
+void check(JsonObject json)
 {
 	int err = fileSystemCheck();
 	if(err) {
@@ -178,7 +142,7 @@ static void check(JsonObject json)
 /*
  * Reformat SPIFFS to blank state
  */
-static void format(JsonObject json)
+void format(JsonObject json)
 {
 	// Open a handle to the root LFS partition
 	int dir = fileOpen("config", File::ReadOnly);
@@ -202,9 +166,49 @@ static void format(JsonObject json)
 	IO::setSuccess(json);
 }
 
+} // namespace
+
 String FileManager::getMethod() const
 {
 	return METHOD_FILES;
+}
+
+bool FileManager::init()
+{
+	fileFreeFileSystem();
+
+#if DEBUG_VERBOSE_LEVEL >= INFO
+	auto freeheap = system_get_free_heap_size();
+#endif
+	debug_i("1: heap = %u", freeheap);
+	if(!fwfs_mount()) {
+		return false;
+	}
+	debug_i("2: heap = -%u", freeheap - system_get_free_heap_size());
+
+	auto part = Storage::findPartition(F("config"));
+	if(!part) {
+		debug_e("Missing config partition");
+		return false;
+	}
+	auto lfs = IFS::createLfsFilesystem(part);
+	if(!lfs || lfs->mount() != FS_OK) {
+		return false;
+	}
+	assert(getFileSystem()->setVolume(1, lfs) == FS_OK);
+
+	return true;
+}
+
+void FileManager::endUpload()
+{
+	if(upload) {
+		if(callback) {
+			callback(*upload);
+		}
+		delete upload;
+		upload = nullptr;
+	}
 }
 
 /*
