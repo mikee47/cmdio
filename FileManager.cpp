@@ -7,6 +7,9 @@
 
 #include "FileManager.h"
 #include <LittleFS.h>
+#ifdef ARCH_HOST
+#include <IFS/Host/FileSystem.h>
+#endif
 
 using namespace FileUtils;
 
@@ -177,6 +180,16 @@ bool FileManager::init()
 {
 	fileFreeFileSystem();
 
+#ifdef USE_LOCAL_FILESYSTEM
+
+	int err = symlink(PROJECT_DIR "/config", PROJECT_DIR "/files/config");
+	(void)err;
+	atexit([]() { remove(PROJECT_DIR "/files/config"); });
+	auto fs = new IFS::Host::FileSystem(PROJECT_DIR "/files");
+	return fileMountFileSystem(fs);
+
+#else
+
 #if DEBUG_VERBOSE_LEVEL >= INFO
 	auto freeheap = system_get_free_heap_size();
 #endif
@@ -198,6 +211,7 @@ bool FileManager::init()
 	assert(getFileSystem()->setVolume(1, lfs) == FS_OK);
 
 	return true;
+#endif
 }
 
 void FileManager::endUpload()
