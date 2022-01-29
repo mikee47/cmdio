@@ -79,28 +79,30 @@ void check(JsonObject json)
 	}
 }
 
-/*
- * Reformat SPIFFS to blank state
- */
 void format(JsonObject json)
 {
-	// Open a handle to the root LFS partition
-	int dir = fileOpen("config", File::ReadOnly);
-	if(dir < 0) {
-		IO::setError(json, dir, fileGetErrorString(dir));
-		return;
+	String path = json[ATTR_NAME];
+	FileStat stat{};
+	fileStats(path, stat);
+	if(!stat.attr[FileAttribute::MountPoint]) {
+		return (void)IO::setError(json, IO::Error::access_denied);
 	}
+
 	// Get filesystem object
-	FileStat stat;
+	int dir = fileOpen(path, File::ReadOnly);
+	if(dir < 0) {
+		return (void)IO::setError(json, dir, fileGetErrorString(dir));
+	}
 	int err = fileStats(dir, stat);
 	fileClose(dir);
+
 	if(err == FS_OK) {
 		// Format the filesystem
 		err = stat.fs->format();
 	}
+
 	if(err < 0) {
-		IO::setError(json, err, fileGetErrorString(err));
-		return;
+		return (void)IO::setError(json, IO::Error::file, fileGetErrorString(err));
 	}
 
 	IO::setSuccess(json);
