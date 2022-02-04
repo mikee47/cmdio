@@ -134,5 +134,5 @@ private:
 	 * it's stateless; we'd need the client to store a token to deal
 	 * with this.
 	 */
-	UserRole access;
+	UserRole access{};
 };
