@@ -20,7 +20,7 @@ DEFINE_FSTR_LOCAL(COMMAND_LOGIN, "login");
 DEFINE_FSTR_LOCAL(ATTR_USERS, "users");
 DEFINE_FSTR_LOCAL(ATTR_ACCESS, "access");
 
-DEFINE_FSTR_LOCAL(FILE_AUTH, ".auth.json");
+DEFINE_FSTR_LOCAL(FILE_AUTH, "config/.auth.json");
 
 /*
  * Given a username and password check the users list to see if there is a match.

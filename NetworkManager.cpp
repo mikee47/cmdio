@@ -34,7 +34,7 @@ static LLMNRResponder LLMNR;
 static const uint8_t DNS_PORT = 53;
 
 // System config file (private - secure)
-DEFINE_FSTR_LOCAL(FILE_NETWORK_CONFIG, ".network.json");
+DEFINE_FSTR_LOCAL(FILE_NETWORK_CONFIG, "config/.network.json");
 DEFINE_FSTR_LOCAL(ATTR_HOSTNAME, "hostname");
 DEFINE_FSTR_LOCAL(ATTR_SERVER_PORT, "server-port");
 DEFINE_FSTR_LOCAL(DEFAULT_HOSTNAME, "sming-demo");

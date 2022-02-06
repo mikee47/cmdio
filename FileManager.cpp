@@ -6,11 +6,9 @@
  */
 
 #include "FileManager.h"
+#include <LittleFS.h>
 
 using namespace FileUtils;
-
-// Enable this to use hybrid filesystem. Defaults to FWFS (firmware filesystem, read-only)
-#define FWFS_HYBRID
 
 // LIST
 DEFINE_FSTR_LOCAL(COMMAND_LIST, "list")
@@ -36,34 +34,22 @@ bool FileManager::init()
 	auto freeheap = system_get_free_heap_size();
 #endif
 	debug_i("1: heap = %u", freeheap);
-
-	auto fwfsPartition = *Storage::findPartition(Storage::Partition::SubType::Data::fwfs);
-	IFS::IFileSystem* fs;
-#ifdef FWFS_HYBRID
-	auto spiffsPartition = *Storage::findPartition(Storage::Partition::SubType::Data::spiffs);
-	auto spiffs = IFS::createSpiffsFilesystem(spiffsPartition);
-	fs = IFS::createHybridFilesystem(fwfsPartition, spiffs);
-#else
-	fs = IFS::createFirmwareFilesystem(fwfsPartition);
-#endif
+	if(!fwfs_mount()) {
+		return false;
+	}
 	debug_i("2: heap = -%u", freeheap - system_get_free_heap_size());
 
-	if(fs == nullptr) {
-		debug_e("Failed to created filesystem object");
+	auto part = Storage::findPartition(F("config"));
+	if(!part) {
+		debug_e("Missing config partition");
 		return false;
 	}
-
-	int res = fs->mount();
-	debug_i("3: heap = -%u", freeheap - system_get_free_heap_size());
-
-	debug_i("mount() returned %d (%s)", res, fs->getErrorString(res).c_str());
-
-	if(res < 0) {
-		delete fs;
+	auto lfs = IFS::createLfsFilesystem(part);
+	if(!lfs || lfs->mount() != FS_OK) {
 		return false;
 	}
+	assert(getFileSystem()->setVolume(1, lfs) == FS_OK);
 
-	fileSetFileSystem(fs);
 	return true;
 }
 
@@ -194,12 +180,26 @@ static void check(JsonObject json)
  */
 static void format(JsonObject json)
 {
-	int err = fileSystemFormat();
+	// Open a handle to the root LFS partition
+	int dir = fileOpen("config", File::ReadOnly);
+	if(dir < 0) {
+		IO::setError(json, dir, fileGetErrorString(dir));
+		return;
+	}
+	// Get filesystem object
+	FileStat stat;
+	int err = fileStats(dir, stat);
+	fileClose(dir);
+	if(err == FS_OK) {
+		// Format the filesystem
+		err = stat.fs->format();
+	}
 	if(err < 0) {
 		IO::setError(json, err, fileGetErrorString(err));
-	} else {
-		IO::setSuccess(json);
+		return;
 	}
+
+	IO::setSuccess(json);
 }
 
 String FileManager::getMethod() const
