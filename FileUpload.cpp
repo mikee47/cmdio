@@ -6,6 +6,7 @@
  */
 
 #include "FileManager.h"
+#include <Storage/PartitionStream.h>
 
 using namespace FileUtils;
 
@@ -13,12 +14,52 @@ DEFINE_FSTR_LOCAL(ATTR_WRITTEN, "written")
 
 #define UPLOAD_TIMEOUT_MS 2000
 
+/**
+ * @brief Hook files of the format "@@nnnnnnnn.ulf"
+ * @retval bool true if file matches, false otherwise
+ *
+ * If filename is valid, content will be written to flash at offset 0xnnnnnnnn.
+ * On success, file is deleted.
+ * On failure, file is truncated to zero length.
+ */
+bool FileUpload::initFlashUpload()
+{
+	if(connection == nullptr || connection->getAccess() < UserRole::Admin) {
+		return false;
+	}
+	if(!fileName.startsWith(F("@@")) || !fileName.endsWith(F(".ulf"))) {
+		return false;
+	}
+
+	String partName = fileName;
+	partName.setLength(partName.length() - 4);
+	partName.remove(0, 2);
+
+	auto part = Storage::findPartition(partName);
+	if(!part) {
+		debug_e("[FUP] Partition '%s' not found", partName.c_str());
+		return false;
+	}
+
+	// TODO: Block writes to running firmware image
+
+	stream.reset(new Storage::PartitionStream(part, true));
+	return true;
+}
+
 int FileUpload::init(const char* filename, size_t size)
 {
 	fileName = filename;
 	fileSize = size;
-	if(!file.open(fileName, File::CreateNewAlways | File::WriteOnly)) {
-		return file.getLastError();
+
+	if(!initFlashUpload()) {
+		auto file = new FileStream;
+		if(!file->open(fileName, File::CreateNewAlways | File::WriteOnly)) {
+			int err = file->getLastError();
+			delete file;
+			return err;
+		}
+		stream.reset(file);
 	}
 
 	error = ERROR_TIMEOUT;
@@ -30,18 +71,17 @@ int FileUpload::init(const char* filename, size_t size)
 
 bool FileUpload::handleData(WSCommandConnection* connection, uint8_t* data, size_t size)
 {
-	if(this->connection != connection) {
+	if(this->connection != connection || !stream) {
 		return false;
 	}
 
-	debug_i("FileUpload::handleData(%u)", size);
+	debug_d("FileUpload::handleData(%u)", size);
 
 	timer.stop();
 
-	int n = file.write(data, size);
-	if(n != (int)size) {
+	if(stream->write(data, size) != size) {
 		debug_e("File write error");
-		error = n;
+		error = IFS::Error::WriteFailure;
 	} else {
 		bytesWritten += size;
 		// Need more data
@@ -59,10 +99,7 @@ bool FileUpload::handleData(WSCommandConnection* connection, uint8_t* data, size
 
 void FileUpload::endUpload()
 {
-	if(file) {
-		file.flush();
-	}
-
+	stream.reset();
 	if(connection) {
 		DynamicJsonDocument doc(1024);
 		auto json = doc.to<JsonObject>();
@@ -70,7 +107,7 @@ void FileUpload::endUpload()
 		json[ATTR_METHOD] = String(METHOD_FILES);
 		json[ATTR_COMMAND] = String(COMMAND_UPLOAD);
 		json[ATTR_WRITTEN] = bytesWritten;
-		FileUtils::getFileInfo(json, file);
+		FileUtils::getFileInfo(json, fileName);
 		if(error) {
 			IO::setError(json, error, fileGetErrorString(error));
 		} else {
@@ -78,7 +115,6 @@ void FileUpload::endUpload()
 		}
 		connection->send(json);
 	}
-	file.close();
 
 	manager.endUpload();
 }

@@ -87,10 +87,10 @@ void getFileInfo(JsonObject json, const FileStat& stat)
 	json[ATTR_MTIME] = DateTime(SystemClock.now()).toISO8601();
 }
 
-void getFileInfo(JsonObject json, File& file)
+void getFileInfo(JsonObject json, const String& filename)
 {
 	FileNameStat stat;
-	if(file.stat(stat)) {
+	if(fileStats(filename, stat) == FS_OK) {
 		getFileInfo(json, stat);
 	}
 }

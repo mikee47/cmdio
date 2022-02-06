@@ -45,12 +45,13 @@ public:
 	bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size);
 
 private:
+	bool initFlashUpload();
 	void endUpload();
 
 private:
 	FileManager& manager;
 	String fileName;
-	File file;
+	std::unique_ptr<ReadWriteStream> stream;
 	uint32_t fileSize{0};
 	WSCommandConnection* connection{nullptr};
 	uint32_t bytesWritten{0};
