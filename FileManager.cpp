@@ -187,7 +187,10 @@ bool FileManager::init()
 	if(!lfs || lfs->mount() != FS_OK) {
 		return false;
 	}
-	assert(getFileSystem()->setVolume(1, lfs) == FS_OK);
+	if(getFileSystem()->setVolume(1, lfs) != FS_OK) {
+		delete lfs;
+		return false;
+	}
 
 	return true;
 #endif
