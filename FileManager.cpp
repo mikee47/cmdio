@@ -7,7 +7,9 @@
 
 #include "FileManager.h"
 #include <LittleFS.h>
-#ifdef ARCH_HOST
+#include <IFS/FileCopier.h>
+
+#ifdef USE_LOCAL_FILESYSTEM
 #include <IFS/Host/FileSystem.h>
 #endif
 
@@ -27,6 +29,8 @@ DEFINE_FSTR_LOCAL(ATTR_FREE_SPACE, "freespace")
 DEFINE_FSTR_LOCAL(COMMAND_CHECK, "check")
 // FORMAT
 DEFINE_FSTR_LOCAL(COMMAND_FORMAT, "format")
+// RESTORE
+DEFINE_FSTR_LOCAL(COMMAND_RESTORE, "restore")
 
 void deleteFiles(JsonObject json)
 {
@@ -108,6 +112,42 @@ void format(JsonObject json)
 	IO::setSuccess(json);
 }
 
+void restore(JsonObject json)
+{
+	String filename = json[ATTR_NAME];
+	auto fs = fileMountArchive(filename);
+	if(!fs) {
+		IO::setError(json, IO::Error::file);
+		return;
+	}
+
+	bool hasErrors = false;
+
+	IFS::FileCopier copier(*fs, *getFileSystem());
+	auto errorHandler = [&](IFS::FileSystem& fileSys, int errorCode, IFS::FileCopier::Operation operation,
+							const String& path) -> bool {
+		auto obj = json["files"].createNestedObject(path);
+		obj["operation"] = toString(operation);
+		obj["error"] = fileSys.getErrorString(errorCode);
+		hasErrors = true;
+		return true;
+	};
+	copier.onError(errorHandler);
+	int i = filename.lastIndexOf('/');
+	if(i < 0) {
+		filename = nullptr;
+	} else {
+		filename.setLength(i);
+	}
+
+	copier.copyDir(nullptr, filename.c_str());
+	if(hasErrors) {
+		IO::setError(json, IO::Error::file);
+	} else {
+		IO::setSuccess(json);
+	}
+}
+
 } // namespace
 
 String FileManager::getMethod() const
@@ -159,8 +199,7 @@ void FileManager::endUpload()
 		if(callback) {
 			callback(*upload);
 		}
-		delete upload;
-		upload = nullptr;
+		upload.reset();
 	}
 }
 
@@ -172,15 +211,14 @@ IO::ErrorCode FileManager::startUpload(WSCommandConnection* connection, JsonObje
 		return IO::setError(json, IO::Error::bad_param);
 	}
 
-	upload = new FileUpload(*this, connection);
-	if(upload == nullptr) {
+	upload.reset(new FileUpload(*this, connection));
+	if(!upload) {
 		return IO::setError(json, IO::Error::no_mem);
 	}
 
 	int error = upload->init(name, size);
 	if(error < 0) {
-		delete upload;
-		upload = nullptr;
+		upload.reset();
 		IO::setError(json, error, fileGetErrorString(error));
 		return IO::Error::file;
 	}
@@ -205,6 +243,8 @@ void FileManager::handleMessage(WSCommandConnection* connection, JsonObject json
 		check(json);
 	} else if(COMMAND_FORMAT == cmd) {
 		format(json);
+	} else if(COMMAND_RESTORE == cmd) {
+		restore(json);
 	} else {
 		WSCommandHandler::handleMessage(connection, json);
 	}

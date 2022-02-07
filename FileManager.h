@@ -55,6 +55,6 @@ private:
 	void endUpload();
 
 private:
-	FileUpload* upload = nullptr;
+	std::unique_ptr<FileUpload> upload;
 	FileUploadDelegate callback = nullptr;
 };

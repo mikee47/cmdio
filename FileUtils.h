@@ -22,7 +22,7 @@ char* checkString(char* str, unsigned length);
 
 void getFileInfo(JsonObject json, const FileStat& stat);
 
-void getFileInfo(JsonObject json, file_t file);
+void getFileInfo(JsonObject json, File& file);
 
 } // namespace FileUtils
 

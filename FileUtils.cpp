@@ -82,15 +82,15 @@ void getFileInfo(JsonObject json, const FileStat& stat)
 	IFS::IFileSystem::Info fsi;
 	stat.fs->getinfo(fsi);
 	json["fs"] = (int)fsi.type;
-	json[ATTR_ACCESS] = toString(stat.acl);
+	json[ATTR_ACCESS] = IFS::getAclString(stat.acl);
 	json[ATTR_ATTR] = IFS::getFileAttributeString(stat.attr);
 	json[ATTR_MTIME] = DateTime(SystemClock.now()).toISO8601();
 }
 
-void getFileInfo(JsonObject json, file_t file)
+void getFileInfo(JsonObject json, File& file)
 {
 	FileNameStat stat;
-	if(fileStats(file, stat) >= 0) {
+	if(file.stat(stat)) {
 		getFileInfo(json, stat);
 	}
 }

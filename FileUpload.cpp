@@ -17,10 +17,8 @@ int FileUpload::init(const char* filename, size_t size)
 {
 	fileName = filename;
 	fileSize = size;
-	fileHandle = fileOpen(fileName, File::CreateNewAlways | File::WriteOnly);
-	debug_i("fileOpen('%s'): %d", filename, fileHandle);
-	if(fileHandle < 0) {
-		return fileHandle;
+	if(!file.open(fileName, File::CreateNewAlways | File::WriteOnly)) {
+		return file.getLastError();
 	}
 
 	error = ERROR_TIMEOUT;
@@ -28,14 +26,6 @@ int FileUpload::init(const char* filename, size_t size)
 		.startOnce();
 
 	return FS_OK;
-}
-
-void FileUpload::close()
-{
-	if(fileHandle >= 0) {
-		fileClose(fileHandle);
-		fileHandle = -1;
-	}
 }
 
 bool FileUpload::handleData(WSCommandConnection* connection, uint8_t* data, size_t size)
@@ -48,7 +38,7 @@ bool FileUpload::handleData(WSCommandConnection* connection, uint8_t* data, size
 
 	timer.stop();
 
-	int n = fileWrite(fileHandle, data, size);
+	int n = file.write(data, size);
 	if(n != (int)size) {
 		debug_e("File write error");
 		error = n;
@@ -69,8 +59,8 @@ bool FileUpload::handleData(WSCommandConnection* connection, uint8_t* data, size
 
 void FileUpload::endUpload()
 {
-	if(fileHandle >= 0) {
-		fileFlush(fileHandle);
+	if(file) {
+		file.flush();
 	}
 
 	if(connection) {
@@ -80,7 +70,7 @@ void FileUpload::endUpload()
 		json[ATTR_METHOD] = String(METHOD_FILES);
 		json[ATTR_COMMAND] = String(COMMAND_UPLOAD);
 		json[ATTR_WRITTEN] = bytesWritten;
-		FileUtils::getFileInfo(json, fileHandle);
+		FileUtils::getFileInfo(json, file);
 		if(error) {
 			IO::setError(json, error, fileGetErrorString(error));
 		} else {
@@ -88,7 +78,7 @@ void FileUpload::endUpload()
 		}
 		connection->send(json);
 	}
-	close();
+	file.close();
 
 	manager.endUpload();
 }

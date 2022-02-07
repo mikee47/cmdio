@@ -8,6 +8,7 @@
 #include <Data/Stream/TemplateFileStream.h>
 #include <Data/Stream/IFS/JsonDirectoryTemplate.h>
 #include <Data/Stream/IFS/HtmlDirectoryTemplate.h>
+#include <Data/Stream/IFS/ArchiveStream.h>
 
 #include "WebServer.h"
 
@@ -35,6 +36,7 @@ DEFINE_FSTR_LOCAL(ATTR_FORMAT, "format")
 
 DEFINE_FSTR_LOCAL(FORMAT_JSON, "json")
 DEFINE_FSTR_LOCAL(FORMAT_HTML, "html")
+DEFINE_FSTR_LOCAL(FORMAT_ARCHIVE, "archive")
 
 /*
  * All web file requests come here.
@@ -164,13 +166,34 @@ void WebServer::sendFile(const String& filename, const String& format, const Str
 	};
 
 	if(FORMAT_JSON == format) {
-		sendTemplate(FS_LISTING_JSON, MIME_JSON);
-	} else if(FORMAT_HTML == format) {
-		sendTemplate(FS_LISTING_HTML, MIME_HTML);
-	} else {
-		debug_e("Unknown format '%s'", format.c_str());
-		response.code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
+		return sendTemplate(FS_LISTING_JSON, MIME_JSON);
 	}
+
+	if(FORMAT_HTML == format) {
+		return sendTemplate(FS_LISTING_HTML, MIME_HTML);
+	}
+
+	if(FORMAT_ARCHIVE == format) {
+		debug_i("Sending streaming archive");
+		IFS::FileSystem::NameInfo fsinfo;
+		fileGetSystemInfo(fsinfo);
+		ArchiveStream::VolumeInfo volumeInfo;
+		volumeInfo.name = F("Backup of '") + filename + "'";
+		auto archive = new ArchiveStream(volumeInfo, filename, ArchiveStream::Flag::IncludeMountPoints);
+		archive->onFilterStat([access](const IFS::Stat& stat) -> bool { return access >= stat.acl.readAccess; });
+		String name = filename;
+		if(name.length() == 0) {
+			name = F("full backup");
+		} else {
+			name.replace('/', '-');
+		}
+		name += F(".arc");
+		response.headers[HTTP_HEADER_CONTENT_DISPOSITION] = F("attachment; filename=\"") + name + '"';
+		return (void)response.sendDataStream(archive, archive->getMimeType());
+	}
+
+	debug_e("Unknown format '%s'", format.c_str());
+	response.code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
 }
 
 bool WebServer::start(const HttpServerSettings& settings)

@@ -30,11 +30,6 @@ public:
 	{
 	}
 
-	~FileUpload()
-	{
-		close();
-	}
-
 	int init(const char* filename, size_t size);
 
 	const String& filename() const
@@ -50,13 +45,12 @@ public:
 	bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size);
 
 private:
-	void close();
 	void endUpload();
 
 private:
 	FileManager& manager;
 	String fileName;
-	file_t fileHandle{-1};
+	File file;
 	uint32_t fileSize{0};
 	WSCommandConnection* connection{nullptr};
 	uint32_t bytesWritten{0};
