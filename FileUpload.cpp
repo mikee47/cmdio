@@ -76,6 +76,7 @@ void FileUpload::endUpload()
 	if(connection) {
 		DynamicJsonDocument doc(1024);
 		auto json = doc.to<JsonObject>();
+		json[ATTR_NAME] = fileName;
 		json[ATTR_METHOD] = String(METHOD_FILES);
 		json[ATTR_COMMAND] = String(COMMAND_UPLOAD);
 		json[ATTR_WRITTEN] = bytesWritten;
