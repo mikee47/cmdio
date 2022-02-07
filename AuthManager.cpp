@@ -29,16 +29,9 @@ DEFINE_FSTR_LOCAL(FILE_AUTH, "config/.auth.json");
  */
 UserRole AuthManager::authenticateUser(const char* username, const char* password)
 {
-	if(username == nullptr) {
-		username = "";
-	}
-	if(password == nullptr) {
-		password = "";
-	}
-
 	DynamicJsonDocument config(1024);
 	Json::loadFromFile(config, FILE_AUTH);
-	JsonArray users = config[ATTR_USERS];
+	JsonObject users = config[ATTR_USERS];
 
 	if(users.size() == 0) {
 		// If unconfigured or corrupted, need a way in
@@ -51,22 +44,22 @@ UserRole AuthManager::authenticateUser(const char* username, const char* passwor
 		return UserRole::None;
 	}
 
-	for(auto user : users) {
-		if(strcasecmp(user[ATTR_NAME], username)) {
-			continue;
-		}
-
-		if(strcmp(user[ATTR_PASSWORD], password) != 0) {
-			debug_i("password mismatch");
-			break;
-		}
-
-		auto role = getUserRole(user[ATTR_ACCESS].as<const char*>(), UserRole::None);
-		debug_i("Role = %u", role);
-		return role;
+	String name(username);
+	name.toLowerCase();
+	JsonObject user = users[name];
+	if(!user) {
+		debug_w("Unknown user '%s'", name.c_str());
+		return UserRole::None;
 	}
 
-	return UserRole::None;
+	if(user[ATTR_PASSWORD].as<String>() != password) {
+		debug_w("Password mismatch");
+		return UserRole::None;
+	}
+
+	auto role = getUserRole(user[ATTR_ACCESS].as<const char*>(), UserRole::None);
+	debug_i("Role = %u", role);
+	return role;
 }
 
 String AuthManager::getMethod() const
