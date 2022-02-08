@@ -47,14 +47,25 @@ public:
 		return upload ? upload->handleData(connection, data, size) : false;
 	}
 
+	bool isPartitionMounted(Storage::Partition part)
+	{
+		return part.name() == (F("fwfs") + firmwarePartitionNumber);
+	}
+
+	uint8_t getFirmwarePartitionNumber() const
+	{
+		return firmwarePartitionNumber;
+	}
+
 private:
 	friend FileUpload;
 
 	IO::ErrorCode getFile(WSCommandConnection* connection, JsonObject json);
-	IO::ErrorCode startUpload(WSCommandConnection* connection, JsonObject json);
+	void startUpload(WSCommandConnection* connection, JsonObject json);
 	void endUpload();
 
 private:
 	std::unique_ptr<FileUpload> upload;
 	FileUploadDelegate callback = nullptr;
+	uint8_t firmwarePartitionNumber{0};
 };

@@ -16,19 +16,19 @@ DEFINE_FSTR_LOCAL(ATTR_WRITTEN, "written")
 
 /**
  * @brief Hook files of the format "@@nnnnnnnn.ulf"
- * @retval bool true if file matches, false otherwise
+ * @retval IO::ErrorCode IO::Error::not_impl if filename doesn't match, otherwise result code
  *
  * If filename is valid, content will be written to flash at offset 0xnnnnnnnn.
  * On success, file is deleted.
  * On failure, file is truncated to zero length.
  */
-bool FileUpload::initFlashUpload()
+IO::ErrorCode FileUpload::initFlashUpload(JsonObject json)
 {
-	if(connection == nullptr || connection->getAccess() < UserRole::Admin) {
-		return false;
-	}
 	if(!fileName.startsWith(F("@@")) || !fileName.endsWith(F(".ulf"))) {
-		return false;
+		return IO::Error::not_impl;
+	}
+	if(connection == nullptr || connection->getAccess() < UserRole::Admin) {
+		return IO::setError(json, IO::Error::access_denied);
 	}
 
 	String partName = fileName;
@@ -37,36 +37,48 @@ bool FileUpload::initFlashUpload()
 
 	auto part = Storage::findPartition(partName);
 	if(!part) {
-		debug_e("[FUP] Partition '%s' not found", partName.c_str());
+		return IO::setError(json, IO::Error::bad_param, partName);
+	}
+	if(part.type() == Storage::Partition::Type::app) {
+		return IO::setError(json, IO::Error::access_denied);
+	}
+	if(manager.isPartitionMounted(part)) {
+		return IO::setError(json, IO::Error::access_denied);
+	}
+
+	stream.reset(new Storage::PartitionStream(part, true));
+	return IO::Error::success;
+}
+
+bool FileUpload::init(JsonObject json)
+{
+	fileName = json[ATTR_NAME].as<const char*>();
+	fileSize = json[ATTR_SIZE];
+	if(fileName.length() == 0 || fileSize == 0) {
+		IO::setError(json, IO::Error::bad_param);
 		return false;
 	}
 
-	// TODO: Block writes to running firmware image
-
-	stream.reset(new Storage::PartitionStream(part, true));
-	return true;
-}
-
-int FileUpload::init(const char* filename, size_t size)
-{
-	fileName = filename;
-	fileSize = size;
-
-	if(!initFlashUpload()) {
+	auto err = initFlashUpload(json);
+	if(err == IO::Error::not_impl) {
 		auto file = new FileStream;
 		if(!file->open(fileName, File::CreateNewAlways | File::WriteOnly)) {
-			int err = file->getLastError();
+			IO::setError(json, IO::Error::file, file->getLastErrorString());
 			delete file;
-			return err;
+			return false;
 		}
 		stream.reset(file);
+	} else if(err != IO::Error::success) {
+		return false;
 	}
 
 	error = ERROR_TIMEOUT;
 	timer.initializeMs<UPLOAD_TIMEOUT_MS>([](void* param) { static_cast<FileUpload*>(param)->endUpload(); }, this)
 		.startOnce();
 
-	return FS_OK;
+	debug_i("File upload '%s', %u bytes", fileName.c_str(), fileSize);
+	IO::setPending(json);
+	return true;
 }
 
 bool FileUpload::handleData(WSCommandConnection* connection, uint8_t* data, size_t size)

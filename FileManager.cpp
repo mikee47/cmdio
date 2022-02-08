@@ -17,6 +17,9 @@ using namespace FileUtils;
 
 namespace
 {
+// config
+DEFINE_FSTR_LOCAL(FILE_FILEMGR_CONFIG, ".filemgr.json")
+DEFINE_FSTR_LOCAL(ATTR_FWFS, "fwfs")
 // LIST
 DEFINE_FSTR_LOCAL(ATTR_FILES, "files")
 DEFINE_FSTR_LOCAL(ATTR_DIR, "dir")
@@ -148,6 +151,27 @@ void restore(JsonObject json)
 	}
 }
 
+#ifndef USE_LOCAL_FILESYSTEM
+IFS::FileSystem* mountConfig()
+{
+	auto part = Storage::findPartition(F("config"));
+	if(!part) {
+		debug_e("Missing config partition");
+		return nullptr;
+	}
+	auto lfs = IFS::createLfsFilesystem(part);
+	if(!lfs) {
+		return nullptr;
+	}
+	if(lfs->mount() != FS_OK) {
+		delete lfs;
+		return nullptr;
+	}
+
+	return lfs;
+}
+#endif
+
 } // namespace
 
 String FileManager::getMethod() const
@@ -169,29 +193,26 @@ bool FileManager::init()
 
 #else
 
-#if DEBUG_VERBOSE_LEVEL >= INFO
-	auto freeheap = system_get_free_heap_size();
-#endif
-	debug_i("1: heap = %u", freeheap);
-	if(!fwfs_mount()) {
-		return false;
+	auto configFileSys = mountConfig();
+	if(configFileSys != nullptr) {
+		// Get current FWFS partition ID from config
+		DynamicJsonDocument doc(1024);
+		IFS::FileStream fs(configFileSys);
+		if(fs.open(FILE_FILEMGR_CONFIG)) {
+			Json::deserialize(doc, fs);
+			auto json = doc.as<JsonObject>();
+			firmwarePartitionNumber = json[ATTR_FWFS];
+		}
 	}
-	debug_i("2: heap = -%u", freeheap - system_get_free_heap_size());
 
-	auto part = Storage::findPartition(F("config"));
-	if(!part) {
-		debug_e("Missing config partition");
-		return false;
-	}
-	auto lfs = IFS::createLfsFilesystem(part);
-	if(!lfs || lfs->mount() != FS_OK) {
-		return false;
-	}
-	if(getFileSystem()->setVolume(1, lfs) != FS_OK) {
-		delete lfs;
+	String partName = F("fwfs") + firmwarePartitionNumber;
+	auto part = Storage::findPartition(partName);
+	if(!fwfs_mount(part)) {
+		delete configFileSys;
 		return false;
 	}
 
+	getFileSystem()->setVolume(1, configFileSys);
 	return true;
 #endif
 }
@@ -206,29 +227,14 @@ void FileManager::endUpload()
 	}
 }
 
-IO::ErrorCode FileManager::startUpload(WSCommandConnection* connection, JsonObject json)
+void FileManager::startUpload(WSCommandConnection* connection, JsonObject json)
 {
-	const char* name = json[ATTR_NAME];
-	size_t size = json[ATTR_SIZE];
-	if(name == nullptr || size <= 0) {
-		return IO::setError(json, IO::Error::bad_param);
-	}
-
 	upload.reset(new FileUpload(*this, connection));
 	if(!upload) {
-		return IO::setError(json, IO::Error::no_mem);
-	}
-
-	int error = upload->init(name, size);
-	if(error < 0) {
+		IO::setError(json, IO::Error::no_mem);
+	} else if(!upload->init(json)) {
 		upload.reset();
-		IO::setError(json, error, fileGetErrorString(error));
-		return IO::Error::file;
 	}
-
-	debug_i("File upload '%s', %u bytes", name, size);
-	IO::setPending(json);
-	return IO::Error::success;
 }
 
 void FileManager::handleMessage(WSCommandConnection* connection, JsonObject json)

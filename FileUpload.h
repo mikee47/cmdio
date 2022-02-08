@@ -30,7 +30,7 @@ public:
 	{
 	}
 
-	int init(const char* filename, size_t size);
+	bool init(JsonObject json);
 
 	const String& filename() const
 	{
@@ -45,7 +45,7 @@ public:
 	bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size);
 
 private:
-	bool initFlashUpload();
+	IO::ErrorCode initFlashUpload(JsonObject json);
 	void endUpload();
 
 private:
