@@ -105,6 +105,7 @@ private:
 	}
 
 private:
+	MacAddress originalMac;
 	// Only need this in AP mode so create it dynamically
 	DnsServer* dnsServer = nullptr;
 	// Persistent data for MDNS - libraries don't reliably keep copies

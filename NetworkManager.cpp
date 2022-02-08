@@ -59,8 +59,8 @@ DEFINE_FSTR_LOCAL(ATTR_HIDDEN, "hidden");
 DEFINE_FSTR_LOCAL(METHOD_NETWORK, "network");
 DEFINE_FSTR_LOCAL(COMMAND_SCAN, "scan");
 DEFINE_FSTR_LOCAL(COMMAND_CONFIG, "config");
-DEFINE_FSTR_LOCAL(ATTR_MACADDR, "MAC Address");
-DEFINE_FSTR_LOCAL(ATTR_IPADDR, "IP Address");
+DEFINE_FSTR_LOCAL(ATTR_MACADDR, "MAC");
+DEFINE_FSTR_LOCAL(ATTR_IPADDR, "IP");
 DEFINE_FSTR(COMMAND_DISCOVER, "discover");
 
 //mDNS using ESP8266 SDK functions
@@ -373,6 +373,12 @@ void NetworkManager::begin()
 
 	DynamicJsonDocument config(1024);
 	Json::loadFromFile(config, FILE_NETWORK_CONFIG);
+	originalMac = WifiStation.getMacAddress();
+	String s = config[ATTR_MACADDR];
+	MacAddress mac(s);
+	if(mac) {
+		WifiStation.setMacAddress(mac);
+	}
 	hostName = config[ATTR_HOSTNAME] | String(DEFAULT_HOSTNAME);
 	WifiStation.setHostname(hostName);
 	serverPort = config[ATTR_SERVER_PORT] | DEFAULT_SERVER_PORT;
