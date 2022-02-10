@@ -18,7 +18,7 @@
 #include "NetworkManager.h"
 #include "FileManager.h"
 
-#ifdef ARCH_HOST
+#ifndef ARCH_ESP8266
 inline void wifi_station_set_reconnect_policy(bool)
 {
 }
