@@ -59,15 +59,40 @@ bool FileUpload::init(JsonObject json)
 		return false;
 	}
 
+	auto access = connection->getAccess();
+
 	auto err = initFlashUpload(json);
 	if(err == IO::Error::not_impl) {
-		auto file = new FileStream;
-		if(!file->open(fileName, File::CreateNewAlways | File::WriteOnly)) {
-			IO::setError(json, IO::Error::file, file->getLastErrorString());
-			delete file;
+		bool createFile{false};
+		IFS::Stat stat;
+		int err = fileStats(fileName, stat);
+		if(err == IFS::Error::NotFound) {
+			createFile = true;
+			err = fileStats(getDirName(fileName), stat);
+		}
+		if(err != FS_OK) {
+			IO::setError(json, IO::Error::file, fileGetErrorString(err));
 			return false;
 		}
-		stream.reset(file);
+		if(access < stat.acl.writeAccess) {
+			IO::setError(json, IO::Error::access_denied);
+			return false;
+		}
+
+		auto file = fileOpen(fileName, File::CreateNewAlways | File::WriteOnly);
+		if(file < 0) {
+			IO::setError(json, IO::Error::file, fileGetErrorString(file));
+			return false;
+		}
+		if(createFile) {
+			// Copy access from directory
+			fileSetACL(file, stat.acl);
+		}
+
+		auto fs = new FileStream;
+		fs->attach(file, 0);
+		stream.reset(fs);
+
 	} else if(err != IO::Error::success) {
 		return false;
 	}

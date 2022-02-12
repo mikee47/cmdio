@@ -25,6 +25,7 @@ IMPORT_FSTR_LOCAL(FS_LISTING_JSON, COMPONENT_PATH "/resource/listing.json")
 DEFINE_FSTR(FILE_INDEX_HTML, "index.html")
 DEFINE_FSTR_LOCAL(FILE_CONFIG_HTML, "config.html")
 DEFINE_FSTR_LOCAL(FILE_ERROR_HTML, "error.html")
+DEFINE_FSTR_LOCAL(FILE_ERROR_JSON, "error.json")
 
 DEFINE_FSTR_LOCAL(METHOD_WEB, "web")
 DEFINE_FSTR_LOCAL(ATTR_PATH, "path")
@@ -113,7 +114,7 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 		debug_i("%s(): code = %d", funcName, response.code);
 
 		auto status = http_status(response.code);
-		auto tmpl = new TemplateFileStream(FILE_ERROR_HTML);
+		auto tmpl = new TemplateFileStream(FORMAT_JSON == format ? FILE_ERROR_JSON : FILE_ERROR_HTML);
 		auto& vars = tmpl->variables();
 		vars[ATTR_PATH] = request.uri.Path;
 		vars[ATTR_CODE] = status;

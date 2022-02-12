@@ -95,4 +95,10 @@ void getFileInfo(JsonObject json, const String& filename)
 	}
 }
 
+String getDirName(const String& filename)
+{
+	int i = filename.lastIndexOf('/');
+	return (i < 0) ? nullptr : filename.substring(0, i);
+}
+
 } // namespace FileUtils

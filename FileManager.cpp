@@ -8,6 +8,7 @@
 #include "FileManager.h"
 #include <LittleFS.h>
 #include <IFS/FileCopier.h>
+#include <IFS/Debug.h>
 
 #ifdef USE_LOCAL_FILESYSTEM
 #include <IFS/Host/FileSystem.h>
@@ -35,7 +36,7 @@ DEFINE_FSTR_LOCAL(COMMAND_FORMAT, "format")
 // RESTORE
 DEFINE_FSTR_LOCAL(COMMAND_RESTORE, "restore")
 
-void deleteFiles(JsonObject json)
+void deleteFiles(JsonObject json, UserRole role)
 {
 	int res = FS_OK;
 	String dir;
@@ -46,11 +47,18 @@ void deleteFiles(JsonObject json)
 	String attrName = ATTR_NAME;
 	for(auto file : files) {
 		String path = dir + static_cast<const char*>(file[attrName]);
-		int err = fileDelete(path);
+		IFS::Stat stat;
+		int err = fileStats(path, stat);
+		if(err == FS_OK && role < stat.acl.writeAccess) {
+			err = IO::Error::access_denied;
+		} else if(err == FS_OK) {
+			err = fileDelete(path);
+		}
 		if(err < 0) {
 			IO::setError(file, err, fileGetErrorString(err));
-			if(res == FS_OK)
+			if(res == FS_OK) {
 				res = err;
+			}
 		} else {
 			IO::setSuccess(file);
 		}
@@ -86,8 +94,13 @@ void check(JsonObject json)
 	}
 }
 
-void format(JsonObject json)
+void format(JsonObject json, UserRole role)
 {
+	if(role < UserRole::Admin) {
+		IO::setError(json, IO::Error::access_denied);
+		return;
+	}
+
 	String path = json[ATTR_NAME];
 	FileStat stat{};
 	fileStats(path, stat);
@@ -115,12 +128,26 @@ void format(JsonObject json)
 	IO::setSuccess(json);
 }
 
-void restore(JsonObject json)
+void restore(JsonObject json, UserRole role)
 {
-	String filename = json[ATTR_NAME];
-	auto fs = fileMountArchive(filename);
+	String path = json[ATTR_NAME];
+	std::unique_ptr<IFS::FileSystem> fs;
+	fs.reset(fileMountArchive(path));
 	if(!fs) {
 		IO::setError(json, IO::Error::file);
+		return;
+	}
+
+	path = getDirName(path);
+
+	IFS::Stat stat;
+	int err = fileStats(path, stat);
+	if(err < 0) {
+		IO::setError(json, IO::Error::file, fileGetErrorString(err));
+		return;
+	}
+	if(role < stat.acl.writeAccess) {
+		IO::setError(json, IO::Error::access_denied);
 		return;
 	}
 
@@ -136,14 +163,8 @@ void restore(JsonObject json)
 		return true;
 	};
 	copier.onError(errorHandler);
-	int i = filename.lastIndexOf('/');
-	if(i < 0) {
-		filename = nullptr;
-	} else {
-		filename.setLength(i);
-	}
 
-	copier.copyDir(nullptr, filename.c_str());
+	copier.copyDir(nullptr, path.c_str());
 	if(hasErrors) {
 		IO::setError(json, IO::Error::file);
 	} else {
@@ -241,19 +262,20 @@ void FileManager::handleMessage(WSCommandConnection* connection, JsonObject json
 {
 	endUpload();
 
+	auto access = connection->getAccess();
 	const char* cmd = json[ATTR_COMMAND];
 	if(COMMAND_UPLOAD == cmd) {
 		startUpload(connection, json);
 	} else if(COMMAND_DELETE == cmd) {
-		deleteFiles(json);
+		deleteFiles(json, access);
 	} else if(COMMAND_INFO == cmd) {
 		getInfo(json);
 	} else if(COMMAND_CHECK == cmd) {
 		check(json);
 	} else if(COMMAND_FORMAT == cmd) {
-		format(json);
+		format(json, access);
 	} else if(COMMAND_RESTORE == cmd) {
-		restore(json);
+		restore(json, access);
 	} else {
 		WSCommandHandler::handleMessage(connection, json);
 	}

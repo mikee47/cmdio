@@ -24,6 +24,8 @@ void getFileInfo(JsonObject json, const FileStat& stat);
 
 void getFileInfo(JsonObject json, const String& filename);
 
+String getDirName(const String& filename);
+
 } // namespace FileUtils
 
 DECLARE_FSTR(ATTR_ACCESS)
