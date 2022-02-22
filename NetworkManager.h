@@ -80,7 +80,7 @@ public:
 
 	UserRole getMinAccess() const override
 	{
-		return UserRole::User;
+		return UserRole::Manager;
 	}
 
 	PageInfo getPageInfo() const override
