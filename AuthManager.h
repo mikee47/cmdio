@@ -37,6 +37,7 @@ public:
 
 private:
 	void login(WSCommandConnection* connection, JsonObject json);
+	void listUsers(WSCommandConnection* connection, JsonObject json);
 
 private:
 	LoginDelegate loginCompleteCallback;

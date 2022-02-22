@@ -19,6 +19,8 @@ DEFINE_FSTR_LOCAL(METHOD_AUTH, "auth");
 DEFINE_FSTR_LOCAL(COMMAND_LOGIN, "login");
 DEFINE_FSTR_LOCAL(ATTR_USERS, "users");
 DEFINE_FSTR_LOCAL(ATTR_ACCESS, "access");
+// List users
+DEFINE_FSTR_LOCAL(COMMAND_LIST, "list");
 
 DEFINE_FSTR_LOCAL(FILE_AUTH, "config/.auth.json");
 
@@ -60,6 +62,25 @@ UserRole AuthManager::authenticateUser(const char* username, const char* passwor
 	auto role = getUserRole(user[ATTR_ACCESS].as<const char*>(), UserRole::None);
 	debug_i("Role = %u", role);
 	return role;
+}
+
+/*
+ * Provide a list of users.
+ * Only managers and above can retrieve this.
+ */
+void AuthManager::listUsers(WSCommandConnection* connection, JsonObject json)
+{
+	if(connection->getAccess() < UserRole::Manager) {
+		return (void)IO::setError(json, IO::Error::access_denied);
+	}
+
+	DynamicJsonDocument config(1024);
+	Json::loadFromFile(config, FILE_AUTH);
+	auto users = json.createNestedObject(ATTR_USERS);
+	for(JsonPair entry : config[ATTR_USERS].as<JsonObject>()) {
+		auto user = users.createNestedObject(entry.key());
+		user[ATTR_ACCESS] = entry.value()[ATTR_ACCESS];
+	}
 }
 
 String AuthManager::getMethod() const
@@ -114,6 +135,8 @@ void AuthManager::handleMessage(WSCommandConnection* connection, JsonObject json
 
 	if(COMMAND_LOGIN == command) {
 		login(connection, json);
+	} else if(COMMAND_LIST == command) {
+		listUsers(connection, json);
 	}
 
 	// Don't include password in response
