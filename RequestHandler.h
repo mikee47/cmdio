@@ -13,5 +13,10 @@ public:
 		return UserRole::User;
 	}
 
+	PageInfo getPageInfo() const override
+	{
+		return {getMinAccess(), F("IO Control")};
+	}
+
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 };

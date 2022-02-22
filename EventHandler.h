@@ -75,6 +75,11 @@ public:
 		return UserRole::Manager;
 	}
 
+	PageInfo getPageInfo() const override
+	{
+		return {getMinAccess(), F("Events")};
+	}
+
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 
 	void fileChange(const String& filename) override;

@@ -22,6 +22,11 @@ DECLARE_FSTR(COMMAND_INFO)
 DECLARE_FSTR(ATTR_NAME)
 DECLARE_FSTR(DONT_RESPOND)
 
+struct PageInfo {
+	UserRole minAccess;
+	String name;
+};
+
 class WSCommandHandler
 {
 public:
@@ -43,6 +48,16 @@ public:
 	{
 		// By default, require maximum access.
 		return UserRole::Admin;
+	}
+
+	/**
+	 * @brief Details for controlling page
+	 * @param info
+	 * @retval bool true on success, false if there's no page for this handler
+	 */
+	virtual PageInfo getPageInfo() const
+	{
+		return {UserRole::MAX, nullptr};
 	}
 
 	/**

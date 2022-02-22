@@ -15,6 +15,11 @@ public:
 		return UserRole::Manager;
 	}
 
+	PageInfo getPageInfo() const override
+	{
+		return {getMinAccess(), F("Actions")};
+	}
+
 	/**
 	 * @brief Trigger an action
 	 * @brief actions List of action ids

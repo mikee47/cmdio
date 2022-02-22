@@ -72,12 +72,14 @@ void WebsocketManager::loginComplete(WSCommandConnection* connection, JsonObject
 	/*
 	 * Client gets a list of authorised methods.
 	 */
-	JsonArray methods = json.createNestedArray(ATTR_METHODS);
-	for(unsigned i = 0; i < handlers.count(); ++i) {
-		WSCommandHandler* handler = handlers[i];
-		if(connection->getAccess() >= handler->getMinAccess()) {
-			methods.add(handler->getMethod());
+	auto methods = json.createNestedObject(ATTR_METHODS);
+	for(auto handler : handlers) {
+		auto info = handler->getPageInfo();
+		if(connection->getAccess() < info.minAccess) {
+			continue;
 		}
+		auto method = methods.createNestedObject(handler->getMethod());
+		method[ATTR_NAME] = info.name;
 	}
 }
 

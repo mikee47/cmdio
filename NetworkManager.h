@@ -83,6 +83,11 @@ public:
 		return UserRole::User;
 	}
 
+	PageInfo getPageInfo() const override
+	{
+		return {getMinAccess(), F("Network")};
+	}
+
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 
 private:

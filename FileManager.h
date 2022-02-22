@@ -35,6 +35,11 @@ public:
 		return UserRole::Manager;
 	}
 
+	PageInfo getPageInfo() const override
+	{
+		return {UserRole::Admin, F("Files")};
+	}
+
 	void onUpload(FileUploadDelegate callback)
 	{
 		this->callback = callback;
