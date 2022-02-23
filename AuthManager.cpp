@@ -54,7 +54,8 @@ UserRole AuthManager::authenticateUser(const char* username, const char* passwor
 		return UserRole::None;
 	}
 
-	if(user[ATTR_PASSWORD].as<String>() != password) {
+	auto requiredPassword = user[ATTR_PASSWORD].as<const char*>();
+	if(requiredPassword == nullptr || strcmp(requiredPassword, password) != 0) {
 		debug_w("Password mismatch");
 		return UserRole::None;
 	}
@@ -70,16 +71,21 @@ UserRole AuthManager::authenticateUser(const char* username, const char* passwor
  */
 void AuthManager::listUsers(WSCommandConnection* connection, JsonObject json)
 {
-	if(connection->getAccess() < UserRole::Manager) {
+	auto access = connection->getAccess();
+	if(access < UserRole::Manager) {
 		return (void)IO::setError(json, IO::Error::access_denied);
 	}
 
 	DynamicJsonDocument config(1024);
 	Json::loadFromFile(config, FILE_AUTH);
-	auto users = json.createNestedObject(ATTR_USERS);
+	auto usersToSend = json.createNestedObject(ATTR_USERS);
 	for(JsonPair entry : config[ATTR_USERS].as<JsonObject>()) {
-		auto user = users.createNestedObject(entry.key());
-		user[ATTR_ACCESS] = entry.value()[ATTR_ACCESS];
+		auto userAccess = entry.value()[ATTR_ACCESS].as<const char*>();
+		if(access < getUserRole(userAccess, UserRole::MAX)) {
+			continue;
+		}
+		auto userToSend = usersToSend.createNestedObject(entry.key());
+		userToSend[ATTR_ACCESS] = userAccess;
 	}
 }
 
@@ -91,16 +97,16 @@ String AuthManager::getMethod() const
 // Don't overwrite access unless authenticated
 void AuthManager::login(WSCommandConnection* connection, JsonObject json)
 {
-	UserRole access = UserRole::None;
-
 	const char* name = json[ATTR_NAME];
 	const char* password = json[ATTR_PASSWORD];
 
 	/*
 	 * If we're in AP mode then blank login on local subnet gets user access
 	 * to permit network scanning and configuration.
+	 *
+	 * This doesn't help when connected via local bridge as all clients appear local.
 	 */
-
+	UserRole access{UserRole::None};
 	if(name == nullptr && password == nullptr && WifiAccessPoint.isEnabled()) {
 		IpAddress ip = connection->getRemoteIp();
 		if(ip.compare(WifiAccessPoint.getIP(), WifiAccessPoint.getNetworkMask())) {
@@ -108,24 +114,22 @@ void AuthManager::login(WSCommandConnection* connection, JsonObject json)
 		} else {
 			debug_w("Different subnets, default access withheld");
 		}
-	}
-
-	if(access == UserRole::None) {
+	} else {
 		access = authenticateUser(name, password);
 	}
 
 	if(access == UserRole::None) {
-		IO::setError(json, IO::Error::access_denied);
-	} else {
-		IO::setSuccess(json);
+		return (void)IO::setError(json, IO::Error::access_denied);
+	}
 
-		// OK, user/password matches
-		connection->setAccess(access);
-		json[ATTR_ACCESS] = toString(access);
+	IO::setSuccess(json);
 
-		if(loginCompleteCallback) {
-			loginCompleteCallback(connection, json);
-		}
+	// OK, user/password matches
+	connection->setAccess(access);
+	json[ATTR_ACCESS] = toString(access);
+
+	if(loginCompleteCallback) {
+		loginCompleteCallback(connection, json);
 	}
 }
 
