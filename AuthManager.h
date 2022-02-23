@@ -33,11 +33,17 @@ public:
 		return UserRole::None;
 	}
 
+	PageInfo getPageInfo() const override
+	{
+		return {UserRole::Manager, "Users"};
+	}
+
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 
 private:
 	void login(WSCommandConnection* connection, JsonObject json);
 	void listUsers(WSCommandConnection* connection, JsonObject json);
+	void updateUser(WSCommandConnection* connection, JsonObject json);
 
 private:
 	LoginDelegate loginCompleteCallback;

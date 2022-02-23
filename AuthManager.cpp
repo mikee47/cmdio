@@ -10,6 +10,9 @@
 #include "AuthManager.h"
 #include "NetworkManager.h"
 
+#define MIN_USERNAME_LENGTH 3
+#define MIN_PASSWORD_LENGTH 5
+
 // Global instance
 AuthManager authManager;
 
@@ -21,7 +24,10 @@ DEFINE_FSTR_LOCAL(ATTR_USERS, "users");
 DEFINE_FSTR_LOCAL(ATTR_ACCESS, "access");
 // List users
 DEFINE_FSTR_LOCAL(COMMAND_LIST, "list");
-
+DEFINE_FSTR_LOCAL(ATTR_ROLES, "roles");
+DEFINE_FSTR_LOCAL(ATTR_ROLE, "role");
+//
+DEFINE_FSTR_LOCAL(COMMAND_UPDATE_USER, "update-user");
 DEFINE_FSTR_LOCAL(FILE_AUTH, "config/.auth.json");
 
 /*
@@ -76,17 +82,86 @@ void AuthManager::listUsers(WSCommandConnection* connection, JsonObject json)
 		return (void)IO::setError(json, IO::Error::access_denied);
 	}
 
-	DynamicJsonDocument config(1024);
+	DynamicJsonDocument config(2048);
 	Json::loadFromFile(config, FILE_AUTH);
 	auto usersToSend = json.createNestedObject(ATTR_USERS);
 	for(JsonPair entry : config[ATTR_USERS].as<JsonObject>()) {
 		auto userAccess = entry.value()[ATTR_ACCESS].as<const char*>();
-		if(access < getUserRole(userAccess, UserRole::MAX)) {
+		if(userAccess == nullptr || access < getUserRole(userAccess, UserRole::MAX)) {
 			continue;
 		}
-		auto userToSend = usersToSend.createNestedObject(entry.key());
-		userToSend[ATTR_ACCESS] = userAccess;
+		JsonObject userToSend = usersToSend.createNestedObject(entry.key());
+		userToSend[ATTR_ROLE] = String(userAccess);
 	}
+
+	auto roles = json.createNestedArray(ATTR_ROLES);
+	for(unsigned i = unsigned(UserRole::User); i <= unsigned(access); ++i) {
+		roles.add(toString(UserRole(i)));
+	}
+
+	IO::setSuccess(json);
+}
+
+void AuthManager::updateUser(WSCommandConnection* connection, JsonObject json)
+{
+	auto access = connection->getAccess();
+	if(access < UserRole::Manager) {
+		return (void)IO::setError(json, IO::Error::access_denied);
+	}
+
+	String username = json[ATTR_NAME].as<const char*>();
+	username.toLowerCase();
+	auto newPassword = json[ATTR_PASSWORD].as<const char*>();
+	auto newPasswordLength = (newPassword == nullptr) ? 0 : strlen(newPassword);
+	auto newRole = getUserRole(json[ATTR_ROLE].as<const char*>(), UserRole::None);
+
+	DynamicJsonDocument doc(2048);
+	if(!Json::loadFromFile(doc, FILE_AUTH)) {
+		return (void)IO::setError(json, IO::Error::no_mem);
+	}
+	auto config = doc.as<JsonObject>();
+	JsonObject users = config[ATTR_USERS];
+	JsonObject user = users[username];
+
+	bool newUser = user.isNull();
+
+	if(!newUser) {
+		auto role = getUserRole(user[ATTR_ACCESS].as<const char*>(), UserRole::MAX);
+		if(role > access) {
+			return (void)IO::setError(json, IO::Error::access_denied);
+		}
+	}
+
+	if(newRole == UserRole::None) {
+		users.remove(username);
+	} else {
+		if(newRole > access) {
+			return (void)IO::setError(json, IO::Error::access_denied);
+		}
+		if(newUser && username.length() < MIN_USERNAME_LENGTH) {
+			return (void)IO::setError(json, IO::Error::bad_param);
+		}
+		// Password length enforced for new users, can be empty for existing users
+		if((newUser || newPasswordLength > 0) && newPasswordLength < MIN_PASSWORD_LENGTH) {
+			return (void)IO::setError(json, IO::Error::bad_param);
+		}
+
+		if(newUser) {
+			user = users.createNestedObject(username);
+		}
+		String s = toString(newRole);
+		s.toLowerCase();
+		user[ATTR_ACCESS] = s;
+		if(newPasswordLength != 0) {
+			user[ATTR_PASSWORD] = newPassword;
+		}
+	}
+
+	if(!Json::saveToFile(config, FILE_AUTH)) {
+		return (void)IO::setError(json, IO::Error::file);
+	}
+
+	IO::setSuccess(json);
 }
 
 String AuthManager::getMethod() const
@@ -141,6 +216,10 @@ void AuthManager::handleMessage(WSCommandConnection* connection, JsonObject json
 		login(connection, json);
 	} else if(COMMAND_LIST == command) {
 		listUsers(connection, json);
+	} else if(COMMAND_UPDATE_USER == command) {
+		updateUser(connection, json);
+	} else {
+		IO::setError(json, IO::Error::bad_command);
 	}
 
 	// Don't include password in response
