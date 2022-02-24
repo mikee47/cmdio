@@ -6,6 +6,7 @@
  */
 
 #include "WebsocketManager.h"
+#include "AuthManager.h"
 
 #if DEBUG_BUILD
 //#define DEBUG_WEBSOCKETS
@@ -154,7 +155,11 @@ void WebsocketManager::connected(WebsocketConnection& socket)
 void WebsocketManager::disconnected(WebsocketConnection& socket)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
+	if(cc == nullptr) {
+		return;
+	}
 	debug_i("Disconnected from %s", cc == nullptr ? "(null)" : cc->getRemoteName().c_str());
+	authManager.disconnected(*cc);
 
 	delete cc;
 }

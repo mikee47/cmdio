@@ -9,6 +9,8 @@
 
 #include "AuthManager.h"
 #include "NetworkManager.h"
+#include <SystemClock.h>
+#include <IO/Strings.h>
 
 #define MIN_USERNAME_LENGTH 3
 #define MIN_PASSWORD_LENGTH 5
@@ -29,6 +31,39 @@ DEFINE_FSTR_LOCAL(ATTR_ROLE, "role");
 //
 DEFINE_FSTR_LOCAL(COMMAND_UPDATE_USER, "update-user");
 DEFINE_FSTR_LOCAL(FILE_AUTH, "config/.auth.json");
+DEFINE_FSTR_LOCAL(FILE_AUTH_LOG, "config/auth.log");
+
+#define LOG(msg) logAppend(F(msg))
+#define LOG2(msg, arg) logAppend(F(msg), arg)
+
+namespace
+{
+void logAppend(const String& msg, const String& arg = nullptr)
+{
+	File file;
+	if(!file.open(FILE_AUTH_LOG, File::WriteOnly | File::Create)) {
+		return;
+	}
+	file.seek(0, SeekOrigin::End);
+	DateTime now = SystemClock.now();
+	String s;
+	s += now.toISO8601();
+	s += '\t';
+	s += msg;
+	if(arg) {
+		s += '\t';
+		s += arg;
+	}
+	s += "\n";
+
+	auto pos = file.tell();
+	file.write(s.c_str(), s.length());
+	if(pos == 0) {
+		file.setacl({UserRole::Admin, UserRole::Admin});
+	}
+}
+
+} // namespace
 
 /*
  * Given a username and password check the users list to see if there is a match.
@@ -37,11 +72,16 @@ DEFINE_FSTR_LOCAL(FILE_AUTH, "config/.auth.json");
  */
 UserRole AuthManager::authenticateUser(const char* username, const char* password)
 {
+	LOG2("user", username);
+
 	DynamicJsonDocument config(1024);
-	Json::loadFromFile(config, FILE_AUTH);
+	if(!Json::loadFromFile(config, FILE_AUTH)) {
+		LOG("Corrupt FILE_AUTH");
+	}
 	JsonObject users = config[ATTR_USERS];
 
 	if(users.size() == 0) {
+		LOG("No users");
 		// If unconfigured or corrupted, need a way in
 		if(F("admin-default") == username) {
 			if(F("please-configure-users") == password) {
@@ -111,6 +151,7 @@ void AuthManager::updateUser(WSCommandConnection* connection, JsonObject json)
 
 	String username = json[ATTR_NAME].as<const char*>();
 	username.toLowerCase();
+	LOG2("user", username);
 	auto newPassword = json[ATTR_PASSWORD].as<const char*>();
 	auto newPasswordLength = (newPassword == nullptr) ? 0 : strlen(newPassword);
 	auto newRole = getUserRole(json[ATTR_ROLE].as<const char*>(), UserRole::None);
@@ -212,6 +253,8 @@ void AuthManager::handleMessage(WSCommandConnection* connection, JsonObject json
 {
 	const char* command = json[ATTR_COMMAND];
 
+	logAppend(command, String(connection->getCid(), HEX));
+
 	if(COMMAND_LOGIN == command) {
 		login(connection, json);
 	} else if(COMMAND_LIST == command) {
@@ -222,6 +265,13 @@ void AuthManager::handleMessage(WSCommandConnection* connection, JsonObject json
 		IO::setError(json, IO::Error::bad_command);
 	}
 
+	logAppend(json[IO::FS_status], json[IO::FS_error][IO::FS_text].as<const char*>());
+
 	// Don't include password in response
 	json.remove(ATTR_PASSWORD);
+}
+
+void AuthManager::disconnected(WSCommandConnection& connection)
+{
+	LOG2("CLOSE", String(connection.getCid(), HEX));
 }

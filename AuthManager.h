@@ -40,6 +40,8 @@ public:
 
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 
+	void disconnected(WSCommandConnection& connection);
+
 private:
 	void login(WSCommandConnection* connection, JsonObject json);
 	void listUsers(WSCommandConnection* connection, JsonObject json);
@@ -48,3 +50,5 @@ private:
 private:
 	LoginDelegate loginCompleteCallback;
 };
+
+extern AuthManager authManager;
