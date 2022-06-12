@@ -9,6 +9,7 @@
 #include <Data/Stream/IFS/JsonDirectoryTemplate.h>
 #include <Data/Stream/IFS/HtmlDirectoryTemplate.h>
 #include <Data/Stream/IFS/ArchiveStream.h>
+#include <Storage/PartitionStream.h>
 
 #include "WebServer.h"
 
@@ -129,6 +130,22 @@ void WebServer::sendFile(const String& filename, const String& format, const Str
 {
 	auto cc = socketManager.findConnection(cid.c_str());
 	UserRole access = (cc == nullptr) ? UserRole::None : cc->getAccess();
+
+	if(filename.startsWith(F("@@"))) {
+		if(access < UserRole::Admin) {
+			response.code = HTTP_STATUS_FORBIDDEN;
+			return;
+		}
+		String partName = filename;
+		partName.setLength(partName.length() - 4);
+		partName.remove(0, 2);
+
+		auto part = Storage::findPartition(partName);
+		if(part) {
+			auto stream = new Storage::PartitionStream(part);
+			return (void)response.sendDataStream(stream, MIME_BINARY);
+		}
+	}
 
 	FileStat stat;
 	if(fileStats(filename, stat) < 0) {
