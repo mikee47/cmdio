@@ -43,13 +43,13 @@ static const uint16_t DEFAULT_SERVER_PORT = 80;
 // WiFi details
 DEFINE_FSTR_LOCAL(CONFIG_AP, "accesspoint");
 DEFINE_FSTR_LOCAL(ATTR_SSID, "ssid");
+DEFINE_FSTR_LOCAL(ATTR_BSSID, "bssid");
 DEFINE_FSTR(ATTR_PASSWORD, "password");
 DEFINE_FSTR_LOCAL(DEFAULT_AP_SSID, "Sming IFS Demo");
 DEFINE_FSTR_LOCAL(DEFAULT_AP_PASSWORD, "welcome");
 
 // WiFi scan information
 DEFINE_FSTR_LOCAL(ATTR_NETWORKS, "networks");
-DEFINE_FSTR_LOCAL(ATTR_BSSID, "bssid");
 DEFINE_FSTR_LOCAL(ATTR_AUTH, "auth");
 DEFINE_FSTR_LOCAL(ATTR_CHANNEL, "channel");
 DEFINE_FSTR_LOCAL(ATTR_RSSI, "rssi");
@@ -397,6 +397,8 @@ void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject j
 		json[ATTR_MACADDR] = WifiStation.getMAC();
 		json[ATTR_IPADDR] = WifiStation.getIP().toString();
 		json[ATTR_SSID] = WifiStation.getSSID();
+		json[ATTR_BSSID] = WifiStation.getBSSID().toString();
+		IO::setSuccess(json);
 		return;
 	}
 
