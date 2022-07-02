@@ -24,6 +24,7 @@ DECLARE_FSTR(COMMAND_DISCOVER);
  */
 struct wifi_info_t {
 	String ssid;
+	MacAddress bssid;
 	String password;
 };
 

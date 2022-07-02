@@ -225,20 +225,26 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject json)
 	 * reconnect.
 	 *
 	 */
-	wifi_info_t* info = new wifi_info_t;
-	if(!info) {
+	auto cfg = new StationClass::Config{
+		.ssid = json[ATTR_SSID].as<const char*>(),
+		.password = json[ATTR_PASSWORD].as<const char*>(),
+		.bssid = String(json[ATTR_BSSID].as<const char*>()),
+#ifndef ARCH_ESP32 // Issue with this on ESP32...
+		.autoConnectOnStartup = true,
+#endif
+		.save = true,
+	};
+	if(cfg == nullptr) {
 		IO::setError(json, IO::Error::no_mem);
 		return;
 	}
-	info->ssid = json[ATTR_SSID].as<const char*>();
-	info->password = json[ATTR_PASSWORD].as<const char*>();
 	// Don't send password back in response
 	json.remove(ATTR_PASSWORD);
 
 	configConnection = connection;
 
 	auto callback = [](os_param_t param) {
-		auto info = reinterpret_cast<wifi_info_t*>(param);
+		auto cfg = reinterpret_cast<StationClass::Config*>(param);
 		// The settings are saved by the ESP8266 firmware
 		//    WifiAccessPoint.enable(false);
 		if(WifiStation.isConnected()) {
@@ -246,8 +252,8 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject json)
 		} else {
 			WifiStation.enable(true);
 		}
-		bool res = WifiStation.config(info->ssid, info->password);
-		delete info;
+		bool res = WifiStation.config(*cfg);
+		delete cfg;
 		if(res) {
 			res = WifiStation.connect();
 		}
@@ -266,7 +272,7 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject json)
 		networkManager.statusChanged(nwc_configChanged);
 	};
 
-	System.queueCallback(callback, reinterpret_cast<os_param_t>(info));
+	System.queueCallback(callback, reinterpret_cast<os_param_t>(cfg));
 
 	IO::setPending(json);
 }
@@ -314,7 +320,7 @@ void NetworkManager::scanComplete(bool success, BssList& list)
 		return;
 	}
 
-	DynamicJsonDocument doc(1024);
+	DynamicJsonDocument doc(2048);
 	auto json = doc.to<JsonObject>();
 	json[ATTR_METHOD] = String(METHOD_NETWORK);
 	json[ATTR_COMMAND] = String(COMMAND_SCAN);
