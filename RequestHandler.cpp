@@ -9,7 +9,7 @@ void RequestHandler::handleMessage(WSCommandConnection* connection, JsonObject j
 {
 	ErrorCode err = devmgr.handleMessage(json, [connection](const Request& request) {
 		debug_i("RequestHandler::handleMessage(%p, %s)", connection, request.id().c_str());
-		StaticJsonDocument<512> doc;
+		StaticJsonDocument<2048> doc;
 		auto json = doc.to<JsonObject>();
 		request.getJson(json);
 		json[ATTR_METHOD] = METHOD_IOCONTROL;
