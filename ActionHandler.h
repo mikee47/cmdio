@@ -2,6 +2,7 @@
 
 #include <WString.h>
 #include <cmdio/CommandHandler.h>
+#include <Timer.h>
 
 DECLARE_FSTR(COMMAND_TRIGGER)
 
@@ -37,4 +38,5 @@ private:
 	uint16_t errorCount{0};
 	uint16_t requestCount{0};
 	IO::ErrorCode lastError{};
+	Timer timer; ///< Enforce interval between requests
 };

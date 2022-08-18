@@ -8,6 +8,8 @@ DEFINE_FSTR_LOCAL(FILE_ACTION_CONFIG, "config/actions.json")
 DEFINE_FSTR_LOCAL(ATTR_ITEMS, "items")
 DEFINE_FSTR(COMMAND_TRIGGER, "trigger")
 
+#define REQUEST_INTERVAL 500
+
 using namespace IO;
 
 void ActionHandler::trigger(const CStringArray& actions)
@@ -74,7 +76,8 @@ void ActionHandler::executeRequest()
 				lastError = err;
 				++errorCount;
 			}
-			executeRequest();
+			timer.initializeMs<REQUEST_INTERVAL>([this]() { executeRequest(); });
+			timer.startOnce();
 		});
 		req->submit();
 		++requestCount;
