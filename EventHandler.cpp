@@ -54,7 +54,7 @@ bool Event::update(time_t now)
 		dt.Minute = mTime % 60;
 		dt.Second = 0;
 		dt.Milliseconds = 0;
-		mDue = timeManager.toLocal(dt + mOffset * 60);
+		mDue = dt.toUnixTime() + mOffset * 60;
 		if(mDue <= now) {
 			mDue += SECS_PER_DAY;
 		}
