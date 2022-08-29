@@ -69,6 +69,13 @@ public:
 	void send(const String& msg);
 	void send(JsonObjectConst json);
 
+	void send(const void* data, size_t length)
+	{
+		if(active()) {
+			socket.send(static_cast<const char*>(data), length, WS_FRAME_BINARY);
+		}
+	}
+
 	// Permitted access type
 	UserRole getAccess()
 	{
