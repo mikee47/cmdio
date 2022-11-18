@@ -154,11 +154,10 @@ void restore(JsonObject json, UserRole role)
 	bool hasErrors = false;
 
 	IFS::FileCopier copier(*fs, *getFileSystem());
-	auto errorHandler = [&](IFS::FileSystem& fileSys, int errorCode, IFS::FileCopier::Operation operation,
-							const String& path) -> bool {
-		auto obj = json["files"].createNestedObject(path);
-		obj["operation"] = toString(operation);
-		obj["error"] = fileSys.getErrorString(errorCode);
+	auto errorHandler = [&](const IFS::FileCopier::ErrorInfo& info) -> bool {
+		auto obj = json["files"].createNestedObject(info.path);
+		obj["operation"] = toString(info.operation);
+		obj["error"] = info.fileSys.getErrorString(info.errorCode);
 		hasErrors = true;
 		return true;
 	};
