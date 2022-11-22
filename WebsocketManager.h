@@ -39,6 +39,7 @@ public:
 	static WSCommandConnection* findConnection(uint32_t cid);
 	static WSCommandConnection* findConnection(const char* cidStr);
 
+	static void broadcast(const void* data, size_t length);
 	static void broadcast(const String& msg);
 	static void broadcast(JsonObjectConst json);
 

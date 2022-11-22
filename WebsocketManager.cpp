@@ -96,6 +96,12 @@ WSCommandHandler* WebsocketManager::findHandler(const char* method)
 	return nullptr;
 }
 
+void WebsocketManager::broadcast(const void* data, size_t length)
+{
+	debug_i("WSCommandConnection::broadcast(%u bytes)", length);
+	WebsocketConnection::broadcast(static_cast<const char*>(data), length, WS_FRAME_BINARY);
+}
+
 void WebsocketManager::broadcast(const String& msg)
 {
 	debug_i("WSCommandConnection::broadcast(\"%s\")", msg.c_str());
