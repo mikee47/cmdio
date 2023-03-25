@@ -29,12 +29,34 @@ DEFINE_FSTR_LOCAL(COMMAND_DELETE, "delete")
 // INFO
 DEFINE_FSTR_LOCAL(ATTR_VOLUME_SIZE, "volumesize")
 DEFINE_FSTR_LOCAL(ATTR_FREE_SPACE, "freespace")
+DEFINE_FSTR_LOCAL(ATTR_PATH, "path")
+DEFINE_FSTR_LOCAL(ATTR_TYPE, "type")
 // CHECK
 DEFINE_FSTR_LOCAL(COMMAND_CHECK, "check")
 // FORMAT
 DEFINE_FSTR_LOCAL(COMMAND_FORMAT, "format")
 // RESTORE
 DEFINE_FSTR_LOCAL(COMMAND_RESTORE, "restore")
+
+IFS::FileSystem* getFileSystem(const String& path, JsonObject json)
+{
+	if(path.length() == 0) {
+		return IFS::getDefaultFileSystem();
+	}
+	int dir = fileOpen(path, File::ReadOnly);
+	if(dir < 0) {
+		IO::setError(json, IO::Error::file, fileGetErrorString(dir));
+		return nullptr;
+	}
+	IFS::Stat stat;
+	int err = fileStats(dir, stat);
+	if(err < 0) {
+		IO::setError(json, IO::Error::file, fileGetErrorString(dir));
+		return nullptr;
+	}
+	fileClose(dir);
+	return IFS::FileSystem::cast(stat.fs);
+}
 
 void deleteFiles(JsonObject json, UserRole role)
 {
@@ -55,7 +77,7 @@ void deleteFiles(JsonObject json, UserRole role)
 			err = fileDelete(path);
 		}
 		if(err < 0) {
-			IO::setError(file, err, fileGetErrorString(err));
+			IO::setError(file, IO::Error::file, fileGetErrorString(err));
 			if(res == FS_OK) {
 				res = err;
 			}
@@ -67,18 +89,24 @@ void deleteFiles(JsonObject json, UserRole role)
 	if(res == FS_OK) {
 		IO::setSuccess(json);
 	} else {
-		IO::setError(json, res, fileGetErrorString(res));
+		IO::setError(json, IO::Error::file, fileGetErrorString(res));
 	}
 }
 
 void getInfo(JsonObject json)
 {
-	IFS::IFileSystem::Info info;
-	int err = fileGetSystemInfo(info);
-	if(err) {
-		IO::setError(json, err, fileGetErrorString(err));
+	auto fs = getFileSystem(json[ATTR_PATH], json);
+	if(!fs) {
 		return;
 	}
+	IFS::IFileSystem::NameInfo info;
+	int err = fs->getinfo(info);
+	if(err) {
+		IO::setError(json, IO::Error::file, fs->getErrorString(err));
+		return;
+	}
+	json[ATTR_NAME] = String(info.name);
+	json[ATTR_TYPE] = toString(info.type);
 	json[ATTR_VOLUME_SIZE] = info.volumeSize;
 	json[ATTR_FREE_SPACE] = info.freeSpace;
 	IO::setSuccess(json);
@@ -86,9 +114,13 @@ void getInfo(JsonObject json)
 
 void check(JsonObject json)
 {
-	int err = fileSystemCheck();
+	auto fs = getFileSystem(json[ATTR_PATH], json);
+	if(!fs) {
+		return;
+	}
+	int err = fs->check();
 	if(err) {
-		IO::setError(json, err, fileGetErrorString(err));
+		IO::setError(json, IO::Error::file, fs->getErrorString(err));
 	} else {
 		IO::setSuccess(json);
 	}
@@ -100,32 +132,17 @@ void format(JsonObject json, UserRole role)
 		IO::setError(json, IO::Error::access_denied);
 		return;
 	}
-
-	String path = json[ATTR_NAME];
-	FileStat stat{};
-	fileStats(path, stat);
-	if(!stat.attr[FileAttribute::MountPoint]) {
-		return (void)IO::setError(json, IO::Error::access_denied);
+	auto fs = getFileSystem(json[ATTR_PATH], json);
+	if(!fs) {
+		return;
 	}
-
-	// Get filesystem object
-	int dir = fileOpen(path, File::ReadOnly);
-	if(dir < 0) {
-		return (void)IO::setError(json, dir, fileGetErrorString(dir));
-	}
-	int err = fileStats(dir, stat);
-	fileClose(dir);
-
-	if(err == FS_OK) {
-		// Format the filesystem
-		err = stat.fs->format();
-	}
-
+	// Format the filesystem
+	int err = fs->format();
 	if(err < 0) {
-		return (void)IO::setError(json, IO::Error::file, fileGetErrorString(err));
+		IO::setError(json, IO::Error::file, fs->getErrorString(err));
+	} else {
+		IO::setSuccess(json);
 	}
-
-	IO::setSuccess(json);
 }
 
 void restore(JsonObject json, UserRole role)
@@ -153,7 +170,7 @@ void restore(JsonObject json, UserRole role)
 
 	bool hasErrors = false;
 
-	IFS::FileCopier copier(*fs, *getFileSystem());
+	IFS::FileCopier copier(*fs, *IFS::getDefaultFileSystem());
 	auto errorHandler = [&](const IFS::FileCopier::ErrorInfo& info) -> bool {
 		auto obj = json["files"].createNestedObject(info.path);
 		obj["operation"] = toString(info.operation);
