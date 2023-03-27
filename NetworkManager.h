@@ -52,11 +52,6 @@ typedef void (*network_scan_complete_t)(JsonObject json, void* param);
 class NetworkManager : public WSCommandHandler
 {
 public:
-	~NetworkManager()
-	{
-		delete ntpClient;
-	}
-
 	void begin();
 
 	void onStatusChange(network_callback_t callback)
@@ -113,7 +108,7 @@ private:
 private:
 	MacAddress originalMac;
 	// Only need this in AP mode so create it dynamically
-	DnsServer* dnsServer = nullptr;
+	std::unique_ptr<DnsServer> dnsServer;
 	// Persistent data for MDNS - libraries don't reliably keep copies
 	String hostName;
 	//
@@ -125,7 +120,7 @@ private:
 	// Network scan
 	WSCommandConnection* scanConnection = nullptr;
 	// For keeping system clock accurate
-	NtpClient* ntpClient = nullptr;
+	std::unique_ptr<NtpClient> ntpClient;
 	//
 	mDNS::Responder mdnsResponder;
 };

@@ -15,7 +15,7 @@
 /**
  * @brief  Callback function for file upload completion
  */
-typedef Delegate<void(const FileUpload& upload)> FileUploadDelegate;
+using FileUploadDelegate = Delegate<void(const FileUpload& upload)>;
 
 class FileManager : public WSCommandHandler
 {
@@ -71,6 +71,6 @@ private:
 
 private:
 	std::unique_ptr<FileUpload> upload;
-	FileUploadDelegate callback = nullptr;
+	FileUploadDelegate callback;
 	uint8_t firmwarePartitionNumber{0};
 };

@@ -140,10 +140,7 @@ void NetworkManager::setEventHandlers()
  */
 bool NetworkManager::accessPointMode(bool enable)
 {
-	if(dnsServer != nullptr) {
-		delete dnsServer;
-		dnsServer = nullptr;
-	}
+	dnsServer.reset();
 
 	//  WifiStation.enable(true);
 	WifiStation.enable(false);
@@ -164,8 +161,8 @@ bool NetworkManager::accessPointMode(bool enable)
 		WifiAccessPoint.enable(true);
 		ret = WifiAccessPoint.config(info.ssid, info.password, info.password.length() ? AUTH_WPA2_PSK : AUTH_OPEN);
 
-		dnsServer = new DnsServer();
-		if(dnsServer != nullptr) {
+		dnsServer.reset(new DnsServer);
+		if(dnsServer) {
 			dnsServer->start(DNS_PORT, "*", WifiAccessPoint.getIP());
 		}
 
@@ -427,8 +424,8 @@ void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject j
 
 void NetworkManager::ntpInit()
 {
-	if(ntpClient == nullptr) {
-		ntpClient = new NtpClient(NtpTimeResultDelegate(&NetworkManager::onNtpReceive, this));
+	if(!ntpClient) {
+		ntpClient.reset(new NtpClient(NtpTimeResultDelegate(&NetworkManager::onNtpReceive, this)));
 	} else {
 		ntpClient->requestTime();
 	}
