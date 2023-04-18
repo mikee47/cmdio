@@ -100,13 +100,14 @@ UserRole AuthManager::authenticateUser(const char* username, const char* passwor
 		return UserRole::None;
 	}
 
-	auto requiredPassword = user[ATTR_PASSWORD].as<const char*>();
+	const char* requiredPassword = user[ATTR_PASSWORD];
 	if(requiredPassword == nullptr || strcmp(requiredPassword, password) != 0) {
 		debug_w("Password mismatch");
 		return UserRole::None;
 	}
 
-	auto role = getUserRole(user[ATTR_ACCESS].as<const char*>(), UserRole::None);
+	const char* access = user[ATTR_ACCESS];
+	auto role = getUserRole(access, UserRole::None);
 	debug_i("Role = %u", role);
 	return role;
 }

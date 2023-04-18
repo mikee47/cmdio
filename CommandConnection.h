@@ -110,11 +110,13 @@ public:
 	String getRemoteName()
 	{
 		auto conn = getHttpConnection();
-		if(conn == nullptr) {
-			return nullptr;
-		} else {
-			return conn->getRemoteIp().toString() + ':' + String(conn->getRemotePort());
+		String s;
+		if(conn) {
+			s += conn->getRemoteIp().toString();
+			s += ':';
+			s += conn->getRemotePort();
 		}
+		return s;
 	}
 
 	uint32_t getCid()
