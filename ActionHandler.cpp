@@ -128,7 +128,7 @@ void ActionHandler::handleMessage(WSCommandConnection* connection, JsonObject js
 		return;
 	}
 
-	IO::setError(json, IO::Error::bad_command);
+	WSCommandHandler::handleMessage(connection, json);
 }
 
 String ActionHandler::getMethod() const

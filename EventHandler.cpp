@@ -185,7 +185,7 @@ void EventHandler::handleMessage(WSCommandConnection* connection, JsonObject jso
 		return (void)IO::setPending(json);
 	}
 
-	IO::setError(json, IO::Error::bad_command);
+	WSCommandHandler::handleMessage(connection, json);
 }
 
 void EventHandler::fileChange(const String& filename)

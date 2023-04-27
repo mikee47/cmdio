@@ -420,6 +420,8 @@ void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject j
 		IO::setSuccess(json);
 		return;
 	}
+
+	WSCommandHandler::handleMessage(connection, json);
 }
 
 void NetworkManager::ntpInit()
