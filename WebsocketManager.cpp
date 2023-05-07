@@ -86,7 +86,7 @@ void WebsocketManager::loginComplete(WSCommandConnection* connection, JsonObject
 
 WSCommandHandler* WebsocketManager::findHandler(const char* method)
 {
-	for(auto handler: handlers) {
+	for(auto handler : handlers) {
 		if(handler->getMethod() == method) {
 			return handler;
 		}
