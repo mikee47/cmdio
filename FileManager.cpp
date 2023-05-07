@@ -242,11 +242,18 @@ bool FileManager::init()
 		}
 	}
 
-	String partName = F("fwfs") + firmwarePartitionNumber;
-	auto part = Storage::findPartition(partName);
-	if(!fwfs_mount(part)) {
-		delete configFileSys;
-		return false;
+	auto mountRoot = [this]() -> bool {
+		auto part = Storage::findPartition(F("fwfs") + firmwarePartitionNumber);
+		return fwfs_mount(part);
+	};
+
+	if(!mountRoot()) {
+		debug_e("Try other partition");
+		firmwarePartitionNumber = 1 - firmwarePartitionNumber;
+		if(!mountRoot()) {
+			delete configFileSys;
+			return false;
+		}
 	}
 
 	getFileSystem()->setVolume(1, configFileSys);
