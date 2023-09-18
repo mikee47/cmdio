@@ -76,6 +76,13 @@ public:
 		}
 	}
 
+	void send(IDataSourceStream* data)
+	{
+		if(active()) {
+			socket.send(data, WS_FRAME_BINARY);
+		}
+	}
+
 	// Permitted access type
 	UserRole getAccess()
 	{
