@@ -7,6 +7,7 @@
 
 #include "WebsocketManager.h"
 #include "AuthManager.h"
+#include <Data/Stream/SharedMemoryStream.h>
 
 #if DEBUG_BUILD
 //#define DEBUG_WEBSOCKETS
@@ -95,23 +96,31 @@ WSCommandHandler* WebsocketManager::findHandler(const char* method)
 	return nullptr;
 }
 
-void WebsocketManager::broadcast(const void* data, size_t length)
+void WebsocketManager::broadcast(const void* data, size_t length, ws_frame_type_t type)
 {
 	debug_i("WSCommandConnection::broadcast(%u bytes)", length);
-	WebsocketConnection::broadcast(static_cast<const char*>(data), length, WS_FRAME_BINARY);
+
+	char* copy = new char[length];
+	memcpy(copy, data, length);
+	std::shared_ptr<const char> sharedData(copy, [](const char* ptr) { delete[] ptr; });
+
+	for(auto skt : WebsocketConnection::getActiveWebsockets()) {
+		auto cc = WSCommandConnection::fromSocket(skt);
+		if(cc && cc->getAccess() >= UserRole::User) {
+			skt->send(new SharedMemoryStream<const char>(sharedData, length), type);
+		}
+	}
 }
 
 void WebsocketManager::broadcast(const String& msg)
 {
 	debug_i("WSCommandConnection::broadcast(\"%s\")", msg.c_str());
-	WebsocketConnection::broadcast(msg);
+	broadcast(msg.c_str(), msg.length(), WS_FRAME_TEXT);
 }
 
 void WebsocketManager::broadcast(JsonObjectConst json)
 {
-	String s;
-	Json::serialize(json, s);
-	broadcast(s);
+	broadcast(Json::serialize(json));
 }
 
 void WebsocketManager::handleMessage(WSCommandConnection* connection, JsonObject json)
