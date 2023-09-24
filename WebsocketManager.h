@@ -25,8 +25,10 @@ public:
 
 	void registerHandler(WSCommandHandler& handler)
 	{
-		if(!handlers.contains(&handler))
+		if(!handlers.contains(&handler)) {
 			handlers.add(&handler);
+			handler.startup();
+		}
 	}
 
 	void unregisterHandler(WSCommandHandler& handler)

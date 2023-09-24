@@ -35,6 +35,13 @@ public:
 	}
 
 	/**
+	 * @brief Perform any necessary startup initialisation
+	 */
+	virtual void startup()
+	{
+	}
+
+	/**
 	 * @brief Get tag identifying methods this handler deals with
 	 * @retval String
 	 */
