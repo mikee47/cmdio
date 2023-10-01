@@ -21,9 +21,6 @@ public:
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 
 private:
-	bool sendNext();
-
-	FileStream dumpFile;
 	IO::Modbus::Device* device{nullptr};
 	IO::Modbus::Function function{};
 	uint16_t address{0};

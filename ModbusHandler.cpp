@@ -67,52 +67,6 @@ void ModbusHandler::handleMessage(WSCommandConnection* connection, JsonObject js
 	json[DONT_RESPOND] = true;
 }
 
-bool ModbusHandler::sendNext()
-{
-	if(remaining == 0) {
-		return false;
-	}
-
-	auto req = new Modbus::GenericRequest(*device);
-	if(req == nullptr) {
-		return false;
-	}
-	req->function = function;
-	req->count = std::max(maxRequestSize, remaining);
-	req->address = address;
-	req->onComplete([&](const Request& request) {
-		if(request.error()) {
-			dumpFile.println(F("Error: ") + Error::toString(request.error()));
-			remaining = 0;
-			dumpFile.close();
-			return;
-		}
-		auto& req = static_cast<const Modbus::GenericRequest&>(request);
-		auto& rsp = req.pdu->data.readHoldingRegisters.response;
-		unsigned n = rsp.getCount();
-		String s;
-		for(unsigned i = 0; i < n; ++i) {
-			if(i != 0) {
-				s += ' ';
-			}
-			char buf[32];
-			ultoa_wp(rsp.values[i], buf, 16, 4, '0');
-			s += buf;
-		}
-		dumpFile.println(s);
-
-		address += n;
-		remaining -= n;
-		if(!sendNext()) {
-			dumpFile.close();
-		}
-	});
-
-	req->submit();
-
-	return true;
-}
-
 String ModbusHandler::getMethod() const
 {
 	return METHOD_MODBUS;
