@@ -38,6 +38,8 @@ public:
 
 	void loginComplete(WSCommandConnection* connection, JsonObject json);
 
+	static bool isValidConnection(const WSCommandConnection* cc);
+
 	static WSCommandConnection* findConnection(uint32_t cid);
 	static WSCommandConnection* findConnection(const char* cidStr);
 

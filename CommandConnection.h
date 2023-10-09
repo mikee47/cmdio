@@ -46,11 +46,7 @@ class WSCommandConnection
 public:
 	static WSCommandConnection* fromSocket(WebsocketConnection* socket)
 	{
-		if(socket == nullptr) {
-			return nullptr;
-		} else {
-			return static_cast<WSCommandConnection*>(socket->getUserData());
-		}
+		return socket ? static_cast<WSCommandConnection*>(socket->getUserData()) : nullptr;
 	}
 
 	WSCommandConnection(WebsocketConnection& socket);
@@ -61,13 +57,24 @@ public:
 	}
 
 	// Check this connection is still active
-	bool active()
+	bool __forceinline active() const
 	{
-		return socket.getActiveWebsockets().contains(&socket);
+		return isActive(this);
 	}
 
-	void send(const String& msg);
-	void send(JsonObjectConst json);
+	static bool isActive(const WSCommandConnection* cc);
+
+	void send(const String& msg)
+	{
+		if(active()) {
+			socket.send(msg, WS_FRAME_TEXT);
+		}
+	}
+
+	void send(JsonObjectConst json)
+	{
+		send(Json::serialize(json));
+	}
 
 	void send(const void* data, size_t length)
 	{
@@ -84,7 +91,7 @@ public:
 	}
 
 	// Permitted access type
-	UserRole getAccess()
+	UserRole getAccess() const
 	{
 		return access;
 	}
@@ -126,7 +133,7 @@ public:
 		return s;
 	}
 
-	uint32_t getCid()
+	uint32_t getCid() const
 	{
 		return cid;
 	}

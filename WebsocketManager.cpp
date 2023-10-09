@@ -36,13 +36,23 @@ WebsocketManager socketManager;
  */
 DEFINE_FSTR(ATTR_CID, "cid")
 
+bool WebsocketManager::isValidConnection(const WSCommandConnection* cc)
+{
+	for(auto skt : WebsocketConnection::getActiveWebsockets()) {
+		auto con = WSCommandConnection::fromSocket(skt);
+		if(con == cc) {
+			return true;
+		}
+	}
+	return false;
+}
+
 WSCommandConnection* WebsocketManager::findConnection(uint32_t cid)
 {
-	auto& list = WebsocketConnection::getActiveWebsockets();
-	for(unsigned i = 0; i < list.count(); ++i) {
-		auto cc = WSCommandConnection::fromSocket(list[i]);
-		if(cc != nullptr && cc->getCid() == cid) {
-			return cc;
+	for(auto skt : WebsocketConnection::getActiveWebsockets()) {
+		auto con = WSCommandConnection::fromSocket(skt);
+		if(con && con->getCid() == cid) {
+			return con;
 		}
 	}
 	return nullptr;
@@ -192,6 +202,9 @@ void WebsocketManager::messageReceived(WebsocketConnection& socket, const String
 	}
 
 	auto cc = WSCommandConnection::fromSocket(&socket);
+	if(cc == nullptr) {
+		return;
+	}
 
 	debug_i("Message received from %s: %s", cc->getRemoteName().c_str(), message.c_str());
 
@@ -215,6 +228,9 @@ void WebsocketManager::messageReceived(WebsocketConnection& socket, const String
 void WebsocketManager::binaryReceived(WebsocketConnection& socket, uint8_t* data, size_t size)
 {
 	auto cc = WSCommandConnection::fromSocket(&socket);
+	if(cc == nullptr) {
+		return;
+	}
 
 	for(unsigned i = 0; i < handlers.count(); ++i) {
 		if(handlers[i]->handleData(cc, data, size)) {
