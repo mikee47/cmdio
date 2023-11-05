@@ -92,6 +92,9 @@ void WebsocketManager::loginComplete(WSCommandConnection* connection, JsonObject
 		}
 		auto method = methods.createNestedObject(handler->getMethod());
 		method[ATTR_NAME] = info.name;
+		if(connection->getAccess() < info.acl.writeAccess) {
+			method["ro"] = true;
+		}
 	}
 }
 
