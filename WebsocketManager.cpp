@@ -87,7 +87,7 @@ void WebsocketManager::loginComplete(WSCommandConnection* connection, JsonObject
 	auto methods = json.createNestedObject(ATTR_METHODS);
 	for(auto handler : handlers) {
 		auto info = handler->getPageInfo();
-		if(connection->getAccess() < info.minAccess) {
+		if(connection->getAccess() < info.acl.readAccess) {
 			continue;
 		}
 		auto method = methods.createNestedObject(handler->getMethod());
@@ -141,7 +141,7 @@ void WebsocketManager::handleMessage(WSCommandConnection* connection, JsonObject
 	if(!handler) {
 		IO::setError(json, IO::Error::bad_command);
 		debug_w("Unknown method: '%s'", method);
-	} else if(connection->getAccess() < handler->getMinAccess()) {
+	} else if(connection->getAccess() < handler->getAccess().readAccess) {
 		IO::setError(json, IO::Error::access_denied);
 	} else {
 		handler->handleMessage(connection, json);

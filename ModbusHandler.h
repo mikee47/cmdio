@@ -8,14 +8,14 @@ class ModbusHandler : public WSCommandHandler
 public:
 	String getMethod() const override;
 
-	UserRole getMinAccess() const override
+	ACL getAccess() const override
 	{
-		return UserRole::Admin;
+		return {UserRole::Admin, UserRole::Admin};
 	}
 
 	PageInfo getPageInfo() const override
 	{
-		return {getMinAccess(), F("Modbus")};
+		return {getAccess(), F("Modbus")};
 	}
 
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;

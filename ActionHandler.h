@@ -11,14 +11,14 @@ class ActionHandler : public WSCommandHandler
 public:
 	String getMethod() const override;
 
-	UserRole getMinAccess() const override
+	ACL getAccess() const override
 	{
-		return UserRole::Manager;
+		return {UserRole::Manager, UserRole::Manager};
 	}
 
 	PageInfo getPageInfo() const override
 	{
-		return {getMinAccess(), F("Actions")};
+		return {getAccess(), F("Actions")};
 	}
 
 	/**
