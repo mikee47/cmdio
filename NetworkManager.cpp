@@ -437,4 +437,5 @@ void NetworkManager::onNtpReceive(NtpClient& client, time_t timestamp)
 {
 	debug_i("NetworkManager::onNtpReceive(%u)", timestamp);
 	timeManager.update(timestamp);
+	statusChanged(nwc_timeUpdated);
 }
