@@ -30,9 +30,9 @@ public:
 	/* WSCommandHandler */
 	String getMethod() const override;
 
-	UserRole getMinAccess() const override
+	ACL getAccess() const override
 	{
-		return UserRole::Admin;
+		return {UserRole::Admin, UserRole::Admin};
 	}
 
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;

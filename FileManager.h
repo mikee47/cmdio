@@ -30,14 +30,14 @@ public:
 	/* WSCommandHandler */
 	String getMethod() const override;
 
-	UserRole getMinAccess() const override
+	ACL getAccess() const override
 	{
-		return UserRole::Manager;
+		return {UserRole::Manager, UserRole::Admin};
 	}
 
 	PageInfo getPageInfo() const override
 	{
-		return {UserRole::Admin, F("Files")};
+		return {{UserRole::Admin, UserRole::Admin}, F("Files")};
 	}
 
 	void onUpload(FileUploadDelegate callback)

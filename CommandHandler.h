@@ -13,8 +13,6 @@
 #include <IO/Error.h>
 #include "CommandConnection.h"
 
-using UserRole = IFS::UserRole;
-
 // Tag used in messages to identify method; responses must contain the same method
 DECLARE_FSTR(ATTR_METHOD)
 DECLARE_FSTR(ATTR_COMMAND)
@@ -23,7 +21,7 @@ DECLARE_FSTR(ATTR_NAME)
 DECLARE_FSTR(DONT_RESPOND)
 
 struct PageInfo {
-	UserRole minAccess;
+	ACL acl;
 	String name;
 };
 
@@ -51,10 +49,10 @@ public:
 	 * @brief Get access type required for this command.
 	 * @retval UserRole
 	 */
-	virtual UserRole getMinAccess() const
+	virtual ACL getAccess() const
 	{
 		// By default, require maximum access.
-		return UserRole::Admin;
+		return {UserRole::Admin, UserRole::Admin};
 	}
 
 	/**
@@ -64,7 +62,7 @@ public:
 	 */
 	virtual PageInfo getPageInfo() const
 	{
-		return {UserRole::MAX, nullptr};
+		return {{UserRole::MAX, UserRole::MAX}, nullptr};
 	}
 
 	/**

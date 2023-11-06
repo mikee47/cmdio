@@ -19,6 +19,7 @@
 #include <IFS/Access.h>
 #include <Network/Http/Websocket/WebsocketConnection.h>
 
+using ACL = IFS::ACL;
 using UserRole = IFS::UserRole;
 
 /*

@@ -8,14 +8,14 @@ class RequestHandler : public WSCommandHandler
 public:
 	String getMethod() const override;
 
-	UserRole getMinAccess() const override
+	ACL getAccess() const override
 	{
-		return UserRole::User;
+		return {UserRole::User, UserRole::User};
 	}
 
 	PageInfo getPageInfo() const override
 	{
-		return {getMinAccess(), F("IO Control")};
+		return {getAccess(), F("IO Control")};
 	}
 
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;

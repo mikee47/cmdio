@@ -70,14 +70,14 @@ public:
 
 	String getMethod() const override;
 
-	UserRole getMinAccess() const override
+	ACL getAccess() const override
 	{
-		return UserRole::Manager;
+		return {UserRole::Manager, UserRole::Manager};
 	}
 
 	PageInfo getPageInfo() const override
 	{
-		return {getMinAccess(), F("Events")};
+		return {getAccess(), F("Events")};
 	}
 
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
