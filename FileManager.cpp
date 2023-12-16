@@ -107,8 +107,8 @@ void getInfo(JsonObject json)
 	}
 	json[ATTR_NAME] = String(info.name);
 	json[ATTR_TYPE] = toString(info.type);
-	json[ATTR_VOLUME_SIZE] = info.volumeSize;
-	json[ATTR_FREE_SPACE] = info.freeSpace;
+	json[ATTR_VOLUME_SIZE] = String(info.volumeSize);
+	json[ATTR_FREE_SPACE] = String(info.freeSpace);
 	IO::setSuccess(json);
 }
 
