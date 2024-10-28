@@ -115,12 +115,12 @@ void WebsocketManager::broadcast(const void* data, size_t length, ws_frame_type_
 
 	char* copy = new char[length];
 	memcpy(copy, data, length);
-	std::shared_ptr<const char> sharedData(copy, [](const char* ptr) { delete[] ptr; });
+	std::shared_ptr<const char[]> sharedData(copy, [](const char* ptr) { delete[] ptr; });
 
 	for(auto skt : WebsocketConnection::getActiveWebsockets()) {
 		auto cc = WSCommandConnection::fromSocket(skt);
 		if(cc && cc->getAccess() >= UserRole::User) {
-			skt->send(new SharedMemoryStream<const char>(sharedData, length), type);
+			skt->send(new SharedMemoryStream<const char[]>(sharedData, length), type);
 		}
 	}
 }
