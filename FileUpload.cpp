@@ -46,7 +46,7 @@ IO::ErrorCode FileUpload::initFlashUpload(JsonObject json)
 		return IO::setError(json, IO::Error::access_denied);
 	}
 
-	stream.reset(new Storage::PartitionStream(part, true));
+	stream.reset(new Storage::PartitionStream(part, Storage::Mode::BlockErase));
 	return IO::Error::success;
 }
 
