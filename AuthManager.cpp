@@ -40,6 +40,7 @@ namespace
 {
 void logAppend(const String& msg, const String& arg = nullptr)
 {
+#ifdef ENABLE_AUTH_LOG
 	File file;
 	if(!file.open(FILE_AUTH_LOG, File::WriteOnly | File::Create)) {
 		return;
@@ -61,6 +62,10 @@ void logAppend(const String& msg, const String& arg = nullptr)
 	if(pos == 0) {
 		file.setacl({UserRole::Admin, UserRole::Admin});
 	}
+#else
+	(void)msg;
+	(void)arg;
+#endif
 }
 
 } // namespace
