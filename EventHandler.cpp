@@ -85,7 +85,7 @@ void EventHandler::begin()
 	reload();
 }
 
-void EventHandler::onTimeChange(int adjustSecs)
+void EventHandler::onTimeChange([[maybe_unused]] int adjustSecs)
 {
 	System.queueCallback([this]() { update(); });
 

@@ -70,7 +70,7 @@ public:
 	 * @param connection If specified, identifes connection for reply
 	 * @param json
 	 */
-	virtual void handleMessage(WSCommandConnection* connection, JsonObject json)
+	virtual void handleMessage(WSCommandConnection*, JsonObject json)
 	{
 		IO::setError(json, IO::Error::bad_command);
 	}
@@ -82,12 +82,16 @@ public:
 	 * @param size
 	 * @retval bool True if data consumed, false on error e.g. message unexpected
 	 */
-	virtual bool handleData(WSCommandConnection* connection, uint8_t* data, size_t size)
+	virtual bool handleData(WSCommandConnection*, uint8_t*, size_t)
 	{
 		return false;
 	}
 
-	virtual void fileChange(const String& filename)
+	/**
+	 * @brief Called when a file changes, which could be a relevant configuration file
+	 * @param filename Allows handlers to reconfigure themselves if their config changes.
+	 */
+	virtual void fileChange(const String&)
 	{
 	}
 
