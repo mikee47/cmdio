@@ -107,7 +107,7 @@ public:
 	{
 		auto conn = getHttpConnection();
 		if(conn != nullptr) {
-			conn->setTimeOut(WS_ACTIVE_TIMEOUT);
+			conn->setTimeOut(timeoutSecs);
 		}
 	}
 
