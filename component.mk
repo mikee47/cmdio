@@ -1,7 +1,19 @@
-COMPONENT_DEPENDS = IOControl
+COMPONENT_DEPENDS = \
+	IOControl \
+	crypto-aes
+
 COMPONENT_SRCDIRS := src
 COMPONENT_INCDIRS := src/include
 COMPONENT_DOXYGEN_INPUT := src/include
+
+CMDIO_TOOLS := $(COMPONENT_PATH)/tools
+FWPACK_BIN := $(COMPONENT_PATH)/tools/fwpack/out/Host/release/firmware/fwpack
+FWPACK := $(FWPACK_BIN) --nonet --debug=0 --
+
+$(FWPACK_BIN):
+	$(Q) $(MAKE) -C $(CMDIO_TOOLS)/fwpack HWCONFIG=standard SMING_ARCH=Host SMING_RELEASE=1
+
+COMPONENT_PREREQUISITES := $(FWPACK_BIN)
 
 #
 ifeq ($(SMING_ARCH),Host)

@@ -1,0 +1,8 @@
+COMPONENT_DEPENDS		:= crypto-aes
+COMPONENT_SOC			:= host
+COMPONENT_SRCFILES		:= fwpack.cpp
+
+ENABLE_MALLOC_COUNT 	:= 0
+APP_NAME				:= fwpack
+
+DISABLE_NETWORK			:= 1
