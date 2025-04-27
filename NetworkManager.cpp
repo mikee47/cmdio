@@ -14,7 +14,7 @@
  */
 
 #include <ESP8266LLMNR/ESP8266LLMNR.h>
-#include <core/TimeManager.h>
+#include <cmdio/TimeManager.h>
 #include "NetworkManager.h"
 #include "FileManager.h"
 
