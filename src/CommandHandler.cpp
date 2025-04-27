@@ -5,7 +5,7 @@
  *      Author: mikee47
  */
 
-#include "CommandHandler.h"
+#include "include/cmdio/CommandHandler.h"
 
 DEFINE_FSTR(ATTR_METHOD, "method");
 DEFINE_FSTR(ATTR_COMMAND, "command");

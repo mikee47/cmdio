@@ -1,4 +1,7 @@
 COMPONENT_DEPENDS = IOControl
+COMPONENT_SRCDIRS := src
+COMPONENT_INCDIRS := src/include
+COMPONENT_DOXYGEN_INPUT := src/include
 
 #
 ifeq ($(SMING_ARCH),Host)

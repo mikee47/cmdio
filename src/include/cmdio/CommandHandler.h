@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <ArduinoJson.h>
 #include <IpAddress.h>
 #include <IFS/Access.h>
 #include <IO/Error.h>

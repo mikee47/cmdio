@@ -5,8 +5,8 @@
  *      Author: mikee47
  */
 
-#include "WebsocketManager.h"
-#include "AuthManager.h"
+#include "include/cmdio/WebsocketManager.h"
+#include "include/cmdio/AuthManager.h"
 #include <Data/Stream/SharedMemoryStream.h>
 
 #if DEBUG_BUILD

@@ -11,11 +11,11 @@
 #include <Data/Stream/IFS/ArchiveStream.h>
 #include <Storage/PartitionStream.h>
 
-#include "WebServer.h"
+#include "include/cmdio/WebServer.h"
 
-#include "WebsocketManager.h"
-#include "FileManager.h"
-#include "NetworkManager.h"
+#include "include/cmdio/WebsocketManager.h"
+#include "include/cmdio/FileManager.h"
+#include "include/cmdio/NetworkManager.h"
 
 #include <IO/Strings.h>
 

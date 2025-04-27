@@ -1,7 +1,7 @@
 #pragma once
 
 #include <WString.h>
-#include <cmdio/CommandHandler.h>
+#include "CommandHandler.h"
 #include <Timer.h>
 
 DECLARE_FSTR(COMMAND_TRIGGER)

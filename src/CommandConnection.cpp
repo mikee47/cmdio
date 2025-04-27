@@ -5,8 +5,8 @@
  *      Author: mikee47
  */
 
-#include "CommandConnection.h"
-#include "WebsocketManager.h"
+#include "include/cmdio/CommandConnection.h"
+#include "include/cmdio/WebsocketManager.h"
 
 namespace
 {

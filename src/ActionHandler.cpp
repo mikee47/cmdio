@@ -1,7 +1,7 @@
-#include "ActionHandler.h"
+#include "include/cmdio/ActionHandler.h"
 #include <IO/DeviceManager.h>
 #include <IO/Strings.h>
-#include <cmdio/WebsocketManager.h>
+#include "include/cmdio/WebsocketManager.h"
 
 DEFINE_FSTR_LOCAL(METHOD_ACTION, "actions")
 DEFINE_FSTR_LOCAL(FILE_ACTION_CONFIG, "config/actions.json")

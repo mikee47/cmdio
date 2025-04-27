@@ -7,8 +7,8 @@
 
 #include <WString.h>
 
-#include "AuthManager.h"
-#include "NetworkManager.h"
+#include "include/cmdio/AuthManager.h"
+#include "include/cmdio/NetworkManager.h"
 #include <SystemClock.h>
 #include <IO/Strings.h>
 

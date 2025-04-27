@@ -14,9 +14,9 @@
  */
 
 #include <ESP8266LLMNR/ESP8266LLMNR.h>
-#include <cmdio/TimeManager.h>
-#include "NetworkManager.h"
-#include "FileManager.h"
+#include "include/cmdio/TimeManager.h"
+#include "include/cmdio/NetworkManager.h"
+#include "include/cmdio/FileManager.h"
 
 #ifndef ARCH_ESP8266
 inline void wifi_station_set_reconnect_policy(bool)
