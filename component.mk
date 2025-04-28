@@ -1,6 +1,14 @@
 COMPONENT_DEPENDS = \
 	IOControl \
-	crypto-aes
+	crypto-aes \
+	ESP8266LLMNR \
+	MDNS \
+	Timezone \
+	SolarCalculator
+
+ifneq ($(SMING_ARCH),Rp2040)
+COMPONENT_DEPENDS += Ota
+endif
 
 COMPONENT_SRCDIRS := src
 COMPONENT_INCDIRS := src/include

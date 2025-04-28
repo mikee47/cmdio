@@ -13,7 +13,9 @@
 #include <cmdio/CommandHandler.h>
 #include <Storage/PartitionStream.h>
 
+#ifdef ARCH_RP2040
 #define ENABLE_FLASHIP
+#endif
 
 #ifdef ENABLE_FLASHIP
 #include <FlashIP.h>
