@@ -42,6 +42,11 @@ public:
 		requestCompleteDelegate = delegate;
 	}
 
+	HttpResourceTree* getPaths()
+	{
+		return server ? &server->paths : nullptr;
+	}
+
 private:
 	int requestComplete(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response);
 	void sendFile(const String& filename, const String& format, const String& cid, HttpResponse& response);
