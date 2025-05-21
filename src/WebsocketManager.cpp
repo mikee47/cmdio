@@ -111,7 +111,7 @@ WSCommandHandler* WebsocketManager::findHandler(const char* method)
 
 void WebsocketManager::broadcast(const void* data, size_t length, ws_frame_type_t type)
 {
-	debug_i("WSCommandConnection::broadcast(%u bytes)", length);
+	debug_d("WSCommandConnection::broadcast(%u bytes)", length);
 
 	char* copy = new char[length];
 	memcpy(copy, data, length);
@@ -127,7 +127,6 @@ void WebsocketManager::broadcast(const void* data, size_t length, ws_frame_type_
 
 void WebsocketManager::broadcast(const String& msg)
 {
-	debug_i("WSCommandConnection::broadcast(\"%s\")", msg.c_str());
 	broadcast(msg.c_str(), msg.length(), WS_FRAME_TEXT);
 }
 
