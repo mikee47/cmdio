@@ -23,14 +23,18 @@ public:
 
 	/**
 	 * @brief Trigger an action
-	 * @brief actions List of action ids
+	 * @param actions List of action ids
+	 * @param byName Pass true to interprets actions by name instead of ID
+	 * @retval unsigned Number of actions found
+	 *
+	 * Actions are matched without case sensitivity.
 	 */
-	void trigger(const CStringArray& actions);
+	unsigned trigger(const CStringArray& actions, bool byName = false);
 
 	void handleMessage(WSCommandConnection* connection, JsonObject json) override;
 
 private:
-	void addRequests(const CStringArray& actions);
+	unsigned addRequests(const CStringArray& actions, bool byName);
 	void executeRequest();
 	bool check(IO::ErrorCode err);
 

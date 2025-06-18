@@ -12,9 +12,9 @@ DEFINE_FSTR(COMMAND_TRIGGER, "trigger")
 
 using namespace IO;
 
-void ActionHandler::trigger(const CStringArray& actions)
+unsigned ActionHandler::trigger(const CStringArray& actions, bool byName)
 {
-	addRequests(actions);
+	unsigned actionsFound = addRequests(actions, byName);
 
 	if(requestCount == 0) {
 		executeRequest();
@@ -26,10 +26,13 @@ void ActionHandler::trigger(const CStringArray& actions)
 	json[ATTR_COMMAND] = COMMAND_TRIGGER;
 	IO::setPending(json);
 	socketManager.broadcast(json);
+
+	return actionsFound;
 }
 
-void ActionHandler::addRequests(const CStringArray& actions)
+unsigned ActionHandler::addRequests(const CStringArray& actions, bool byName)
 {
+	unsigned actionsFound{0};
 	DynamicJsonDocument doc(4096);
 	FileStream input(FILE_ACTION_CONFIG);
 	input.setTimeout(0);
@@ -39,16 +42,20 @@ void ActionHandler::addRequests(const CStringArray& actions)
 		String id = input.readStringUntil('"');
 		input.find(":");
 		Json::deserialize(doc, input);
-		debug_i("ACTION '%s': %u bytes", id.c_str(), doc.memoryUsage());
-		if(!actions.contains(id)) {
+		const char* name = doc["name"];
+		if(!actions.contains(byName ? name : id.c_str())) {
 			continue;
 		}
+		debug_i("ACTION '%s': '%s', %u bytes", id.c_str(), name, doc.memoryUsage());
+		++actionsFound;
 		auto action = doc.as<JsonObject>();
 		JsonArray items = action[ATTR_ITEMS];
 		for(JsonObjectConst item : items) {
 			requestQueue += Json::serialize(item);
 		}
 	} while(input.findUntil(",", "]"));
+
+	return actionsFound;
 }
 
 void ActionHandler::executeRequest()
