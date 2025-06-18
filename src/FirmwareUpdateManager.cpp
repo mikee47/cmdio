@@ -68,7 +68,7 @@ FirmwareUpdateSession::FirmwareUpdateSession(FirmwareUpdateManager& manager, WSC
 
 void FirmwareUpdateSession::notify(IO::ErrorCode err, const String& text)
 {
-	if(connection == nullptr) {
+	if(!WSCommandConnection::isActive(connection)) {
 		return;
 	}
 
@@ -192,7 +192,7 @@ bool FirmwareUpdateSession::handlePayload(uint8_t* data, size_t size)
 	if(bytesReceived < imageSize) {
 		// Notify at end of each chunk
 		if(bytesReceived % chunkSize == 0) {
-			notify(IO::Error::pending);
+			System.queueCallback([this]() { notify(IO::Error::pending); });
 		}
 
 		timer.startOnce();

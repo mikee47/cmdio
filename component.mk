@@ -6,7 +6,9 @@ COMPONENT_DEPENDS = \
 	Timezone \
 	SolarCalculator
 
-ifneq ($(SMING_ARCH),Rp2040)
+ifeq ($(SMING_ARCH),Rp2040)
+COMPONENT_DEPENDS += FlashIP
+else
 COMPONENT_DEPENDS += Ota
 endif
 
