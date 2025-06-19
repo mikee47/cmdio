@@ -24,6 +24,12 @@ public:
 
 	static UserRole authenticateUser(const char* username, const char* password);
 
+	/*
+	 * Authenticate from an HTTP authorization response.
+	 * Only Basic authorization is currently implemented.
+	 */
+	static UserRole authenticateHttp(const String& auth);
+
 	/* WSCommandHandler */
 
 	String getMethod() const override;

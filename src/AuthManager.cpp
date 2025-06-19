@@ -11,6 +11,7 @@
 #include "include/cmdio/NetworkManager.h"
 #include <SystemClock.h>
 #include <IO/Strings.h>
+#include <Data/WebHelpers/base64.h>
 
 #define MIN_USERNAME_LENGTH 3
 #define MIN_PASSWORD_LENGTH 5
@@ -115,6 +116,29 @@ UserRole AuthManager::authenticateUser(const char* username, const char* passwor
 	auto role = getUserRole(access, UserRole::None);
 	debug_i("Role = %u", role);
 	return role;
+}
+
+UserRole AuthManager::authenticateHttp(const String& auth)
+{
+	auto ptr = auth.c_str();
+	if(auth.length() < 6 || memicmp(ptr, "basic ", 6)) {
+		return UserRole::None;
+	}
+	ptr += 6;
+	while(*ptr == ' ') {
+		++ptr;
+	}
+
+	String data = base64_decode(ptr, strlen(ptr));
+	auto username = data.begin();
+	auto password = strchr(username, ':');
+	if(!password) {
+		return UserRole::None;
+	}
+	*password = '\0';
+	++password;
+
+	return authenticateUser(username, password);
 }
 
 /*
