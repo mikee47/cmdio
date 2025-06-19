@@ -153,7 +153,7 @@ bool FirmwareUpdateSession::handleHeader(uint8_t* data, size_t size)
 		return false;
 	}
 
-	stream = std::make_unique<Storage::PartitionStream>(partition, true);
+	stream = std::make_unique<Storage::PartitionStream>(partition, Storage::Mode::BlockErase);
 #endif
 
 	data += sizeof(firmware_header_t);

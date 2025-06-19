@@ -273,7 +273,7 @@ void FileManager::endUpload()
 
 void FileManager::startUpload(WSCommandConnection* connection, JsonObject json)
 {
-	upload.reset(new FileUpload(*this, connection));
+	upload = std::make_unique<FileUpload>(*this, connection);
 	if(!upload) {
 		IO::setError(json, IO::Error::no_mem);
 	} else if(!upload->init(json)) {

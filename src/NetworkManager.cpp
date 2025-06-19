@@ -161,7 +161,7 @@ bool NetworkManager::accessPointMode(bool enable)
 		WifiAccessPoint.enable(true);
 		ret = WifiAccessPoint.config(info.ssid, info.password, info.password.length() ? AUTH_WPA2_PSK : AUTH_OPEN);
 
-		dnsServer.reset(new DnsServer);
+		dnsServer = std::make_unique<DnsServer>();
 		if(dnsServer) {
 			dnsServer->start(DNS_PORT, "*", WifiAccessPoint.getIP());
 		}
@@ -427,7 +427,7 @@ void NetworkManager::handleMessage(WSCommandConnection* connection, JsonObject j
 void NetworkManager::ntpInit()
 {
 	if(!ntpClient) {
-		ntpClient.reset(new NtpClient(NtpTimeResultDelegate(&NetworkManager::onNtpReceive, this)));
+		ntpClient = std::make_unique<NtpClient>(NtpTimeResultDelegate(&NetworkManager::onNtpReceive, this));
 	} else {
 		ntpClient->requestTime();
 	}
