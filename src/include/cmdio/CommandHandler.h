@@ -27,6 +27,14 @@ struct PageInfo {
 class WSCommandHandler
 {
 public:
+	/**
+	 * @brief Binary websocket messages require this header
+	 */
+	struct BinaryMessageHeader {
+		char method[8];
+		char command[8];
+	};
+
 	virtual ~WSCommandHandler()
 	{
 	}
