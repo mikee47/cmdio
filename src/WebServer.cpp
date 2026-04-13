@@ -113,12 +113,11 @@ int WebServer::requestComplete(HttpServerConnection& connection, HttpRequest& re
 	if(!response.isSuccess()) {
 		debug_i("%s(): code = %d", funcName, response.code);
 
-		auto status = http_status(response.code);
 		auto tmpl = new TemplateFileStream(FORMAT_JSON == format ? FILE_ERROR_JSON : FILE_ERROR_HTML);
 		auto& vars = tmpl->variables();
 		vars[ATTR_PATH] = request.uri.Path;
-		vars[ATTR_CODE] = status;
-		vars[ATTR_TEXT] = httpGetStatusText(status);
+		vars[ATTR_CODE] = unsigned(response.code);
+		vars[ATTR_TEXT] = toString(response.code);
 		response.sendNamedStream(tmpl);
 	}
 
