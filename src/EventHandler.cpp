@@ -1,35 +1,66 @@
 #include "include/cmdio/EventHandler.h"
 #include "include/cmdio/TimeManager.h"
 #include <FlashString/Vector.hpp>
+#include <Data/CStringArray.h>
 
+namespace
+{
 DEFINE_FSTR_LOCAL(METHOD_EVENT, "events")
 DEFINE_FSTR_LOCAL(FILE_EVENT_CONFIG, "config/events.json")
 DEFINE_FSTR_LOCAL(ATTR_ENABLE, "enable")
 DEFINE_FSTR_LOCAL(ATTR_OFFSET, "offset")
+DEFINE_FSTR_LOCAL(ATTR_OPERATION, "operation")
+DEFINE_FSTR_LOCAL(ATTR_VALUE, "value")
 DEFINE_FSTR_LOCAL(ATTR_ACTIONS, "actions")
 DEFINE_FSTR_LOCAL(COMMAND_TIME, "time")
 #define ATTR_TRIGGER COMMAND_TRIGGER
 #define ATTR_TIME COMMAND_TIME
 
-#define XX(type) DEFINE_FSTR_LOCAL(TRIGGER_##type, #type)
-EVENT_TRIGGER_MAP(XX)
+CStringArray triggerTypes;
+
+#define XX(op) #op "\0"
+DEFINE_FSTR_LOCAL(operationTypes, EVENT_OPERATION_MAP(XX))
 #undef XX
 
-#define XX(type) &TRIGGER_##type,
-DEFINE_FSTR_VECTOR(triggerTypes, FlashString, EVENT_TRIGGER_MAP(XX))
-#undef XX
+} // namespace
 
 String toString(Trigger trigger)
 {
 	return triggerTypes[unsigned(trigger)];
 }
 
+Trigger getTriggerFromString(const char* str)
+{
+	return Trigger(triggerTypes.indexOf(str));
+}
+
+String toString(Operation operation)
+{
+	const CStringArray types(operationTypes);
+	return types[unsigned(operation)];
+}
+
+Operation getOperationfromString(const char* str)
+{
+	const CStringArray types(operationTypes);
+	return Operation(types.indexOf(str));
+}
+
 Event::Event(const char* id, JsonObject json) : mId(id)
 {
 	const char* trigger = json[ATTR_TRIGGER];
-	mTrigger = Trigger(triggerTypes.indexOf(trigger));
+	int triggerId = triggerTypes.indexOf(trigger);
+	if(triggerId < 0) {
+		triggerId = triggerTypes.count();
+		triggerTypes.add(trigger);
+	}
+	mTrigger = Trigger(triggerId);
 	mTime = json[ATTR_TIME];
 	mOffset = json[ATTR_OFFSET].as<int>();
+	if(auto op = json[ATTR_OPERATION]) {
+		mOperation = getOperationfromString(op.as<const char*>());
+	}
+	mValue = json[ATTR_VALUE].as<int>();
 	for(const char* action : json[ATTR_ACTIONS].as<JsonArray>()) {
 		mActions.add(action);
 	}
@@ -111,6 +142,10 @@ void EventHandler::reload()
 {
 	events.clear();
 
+#define XX(type) #type "\0"
+	triggerTypes = F(EVENT_TRIGGER_MAP(XX));
+#undef XX
+
 	DynamicJsonDocument config(4096);
 	Json::loadFromFile(config, FILE_EVENT_CONFIG);
 	for(JsonPair p : config.as<JsonObject>()) {
@@ -158,12 +193,25 @@ void EventHandler::update()
 
 void EventHandler::trigger(Event& event)
 {
-	debug_i("[EVT] FIRE!");
+	debug_i("[EVT] FIRE %s", event.getId());
 
 	actionHandler.trigger(event.actions());
 
 	// Queue next event
 	update();
+}
+
+unsigned EventHandler::match(Trigger trigger, int value)
+{
+	unsigned count{0};
+	for(auto& evt : events) {
+		if(evt.match(trigger, value)) {
+			this->trigger(evt);
+			++count;
+		}
+	}
+
+	return count;
 }
 
 void EventHandler::handleMessage(WSCommandConnection* connection, JsonObject json)
