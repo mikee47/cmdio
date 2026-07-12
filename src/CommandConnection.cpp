@@ -7,6 +7,7 @@
 
 #include "include/cmdio/CommandConnection.h"
 #include "include/cmdio/WebsocketManager.h"
+#include <Data/Stream/MemoryDataStream.h>
 
 namespace
 {
@@ -39,4 +40,13 @@ WSCommandConnection::WSCommandConnection(WebsocketConnection& socket) : socket(s
 bool WSCommandConnection::isActive(const WSCommandConnection* cc)
 {
 	return socketManager.isValidConnection(cc);
+}
+
+void WSCommandConnection::send(JsonObjectConst json)
+{
+	if(active()) {
+		auto stream = new MemoryDataStream;
+		Json::serialize(json, stream);
+		send(stream, WS_FRAME_TEXT);
+	}
 }

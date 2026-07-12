@@ -72,10 +72,7 @@ public:
 		}
 	}
 
-	void send(JsonObjectConst json)
-	{
-		send(Json::serialize(json));
-	}
+	void send(JsonObjectConst json);
 
 	void send(const void* data, size_t length)
 	{
@@ -84,10 +81,10 @@ public:
 		}
 	}
 
-	void send(IDataSourceStream* data)
+	void send(IDataSourceStream* data, ws_frame_type_t type = WS_FRAME_BINARY)
 	{
 		if(active()) {
-			socket.send(data, WS_FRAME_BINARY);
+			socket.send(data, type);
 		}
 	}
 
