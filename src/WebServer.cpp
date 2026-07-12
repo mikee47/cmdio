@@ -265,6 +265,7 @@ void WebServer::handleMessage(WSCommandConnection* connection, JsonObject json)
 			}
 		}
 
+		IO::setSuccess(json);
 		return;
 	}
 
