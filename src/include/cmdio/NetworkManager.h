@@ -92,10 +92,7 @@ private:
 
 	void onNtpReceive(NtpClient& client, time_t timestamp);
 
-	void configComplete(WifiDisconnectReason reason);
-
 	void scanComplete(bool success, BssList& list);
-	bool stationMode(const wifi_info_t& info);
 	void setEventHandlers();
 
 	void statusChanged(network_change_t nwc)
@@ -113,8 +110,6 @@ private:
 	String hostName;
 	//
 	uint16_t serverPort = 80;
-	// The client connection being used to reconfigure network
-	WSCommandConnection* configConnection = nullptr;
 	//
 	network_callback_t statusChangeCallback = nullptr;
 	// Network scan

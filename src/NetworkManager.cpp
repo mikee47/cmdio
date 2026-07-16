@@ -86,9 +86,6 @@ void NetworkManager::setEventHandlers()
 #if DEBUG_BUILD
 		debug_i("StationConnect('%s', %s, #%d)", ssid.c_str(), bssid.toString().c_str(), channel);
 #endif
-		if(configConnection != nullptr) {
-			configComplete(WifiDisconnectReason(0));
-		}
 	});
 
 	WifiEvents.onStationDisconnect([this](const String& ssid, MacAddress bssid, WifiDisconnectReason reason) {
@@ -97,9 +94,6 @@ void NetworkManager::setEventHandlers()
 				WifiEvents.getDisconnectReasonName(reason).c_str());
 #endif
 		statusChanged(nwc_disconnected);
-		if(configConnection != nullptr) {
-			configComplete(reason);
-		}
 	});
 
 	WifiEvents.onStationAuthModeChange([this](WifiAuthMode oldMode, WifiAuthMode newMode) {
@@ -181,24 +175,6 @@ bool NetworkManager::accessPointMode(bool enable)
 
 void NetworkManager::configure(WSCommandConnection* connection, JsonObject json)
 {
-	// If connection's been dropped we can continue
-	if(configConnection != nullptr) {
-		if(!configConnection->active()) {
-			configConnection = nullptr;
-		}
-	}
-
-	// Already configuring ?
-	if(configConnection != nullptr) {
-		if(configConnection == connection) {
-			IO::setPending(json);
-			return;
-		}
-		// Already reconfiguring via different connection
-		IO::setError(json, IO::Error::access_denied);
-		return;
-	}
-
 	// Hostname is an optional parameter
 	const char* configHostname = json[ATTR_HOSTNAME];
 	if(configHostname != nullptr) {
@@ -222,7 +198,7 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject json)
 	 * reconnect.
 	 *
 	 */
-	auto cfg = new StationClass::Config{
+	StationClass::Config cfg{
 		.ssid = json[ATTR_SSID].as<const char*>(),
 		.password = json[ATTR_PASSWORD].as<const char*>(),
 		.bssid = String(json[ATTR_BSSID].as<const char*>()),
@@ -231,84 +207,28 @@ void NetworkManager::configure(WSCommandConnection* connection, JsonObject json)
 #endif
 		.save = true,
 	};
-	if(cfg == nullptr) {
-		IO::setError(json, IO::Error::no_mem);
-		return;
-	}
 	// Don't send password back in response
 	json.remove(ATTR_PASSWORD);
 
-	configConnection = connection;
-
-	auto callback = [](os_param_t param) {
-		auto cfg = reinterpret_cast<StationClass::Config*>(param);
-		// The settings are saved by the ESP8266 firmware
-		//    WifiAccessPoint.enable(false);
-		if(WifiStation.isConnected()) {
-			WifiStation.disconnect();
-		} else {
-			WifiStation.enable(true);
-		}
-		bool res = WifiStation.config(*cfg);
-		delete cfg;
-		if(res) {
-			res = WifiStation.connect();
-		}
-
-		if(res) {
-			debug_i("Hostname '%s' connecting to SSID '%s'", WifiStation.getHostname().c_str(),
-					WifiStation.getSSID().c_str());
-			/*
-			 * We now wait for connection
-			 */
-		} else {
-			debug_w("Station config failed");
-			networkManager.configComplete(WIFI_DISCONNECT_REASON_UNSPECIFIED);
-		}
-
-		networkManager.statusChanged(nwc_configChanged);
-	};
-
-	System.queueCallback(callback, reinterpret_cast<os_param_t>(cfg));
-
-	IO::setPending(json);
-}
-
-/*
- * Notify client of result of configuration.
- *
- * @param errReason System-defined error code, 0 on success.
- */
-void NetworkManager::configComplete(WifiDisconnectReason errReason)
-{
-	if(errReason) {
-		WifiStation.disconnect();
+	// The settings are saved by the ESP8266 firmware
+	if(!WifiStation.isConnected()) {
+		WifiStation.enable(true);
+	}
+	bool res = WifiStation.config(cfg);
+	if(res) {
+		res = WifiStation.connect();
 	}
 
-	// Low-value reasons are 'internal' values so we only send the final result to the client
-	//  if (reason < REASON_BEACON_TIMEOUT)
-	//    return;
-
-	if(configConnection) {
-		DynamicJsonDocument doc(1024);
-		auto json = doc.to<JsonObject>();
-		json[ATTR_METHOD] = METHOD_NETWORK;
-		json[ATTR_COMMAND] = String(COMMAND_CONFIG);
-		if(errReason != 0) {
-			IO::setError(json, errReason, WifiEvents.getDisconnectReasonName(errReason));
-		} else {
-			IO::setSuccess(json);
-		}
-
-		configConnection->send(json);
-
-		if(!errReason) {
-			configConnection = nullptr;
-		}
+	if(res) {
+		debug_i("Hostname '%s' configured to SSID '%s'", WifiStation.getHostname().c_str(),
+				WifiStation.getSSID().c_str());
+		IO::setSuccess(json);
+	} else {
+		debug_w("Station config failed");
+		IO::setError(json, IO::Error::bad_config);
 	}
 
-	if(!errReason && WifiAccessPoint.isEnabled())
-		System.queueCallback([](os_param_t) { networkManager.accessPointMode(false); });
+	networkManager.statusChanged(nwc_configChanged);
 }
 
 void NetworkManager::scanComplete(bool success, BssList& list)
